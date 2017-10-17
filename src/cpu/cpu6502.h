@@ -29,7 +29,7 @@ typedef struct cpu6502_t {
   // emulation internals
   uint64_t cycle_number; // number of actual cycle
   int stall_cycles; // number of stall cycles
-  cpu6502_interrupt_t interrupt_pending; // type of pending interrupt
+  cpu6502_interrupt_enum_t interrupt_pending; // type of pending interrupt
 
  // memory interface
  cpu6502_read_func_t read;
@@ -39,6 +39,6 @@ typedef struct cpu6502_t {
 void cpu6502_reset(cpu6502_t *cpu); // reset cpu to powerup state
 int cpu6502_run(cpu6502_t *cpu, int n_cycles); // run cpu for n_cycles; a started instruction will not be "truncated";
                                                  // returns number of cycles cpu ran
-void cpu6502_trigger_interrupt(cpu6502_t *cpu, cpu6502_interrupt_t interrupt); // trigger an interrupt
+void cpu6502_trigger_interrupt(cpu6502_t *cpu, cpu6502_interrupt_enum_t interrupt); // trigger an interrupt
 
 #endif

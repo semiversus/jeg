@@ -5,7 +5,7 @@ typedef enum address_mode_enum_t {
   ADR_ABSOLUTE, ADR_ABSOLUTE_X, ADR_ABSOLUTE_Y, ADR_ACCUMULATOR, ADR_IMMEDIATE,
   ADR_IMPLIED, ADR_INDEXED_INDIRECT, ADR_INDIRECT, ADR_INDIRECT_INDEXED,
   ADR_RELATIVE, ADR_ZERO_PAGE, ADR_ZERO_PAGE_X, ADR_ZERO_PAGE_Y
-} address_mode_enum_t,
+} address_mode_enum_t;
 
 typedef enum operation_enum_t {
   OP_ADC, OP_AHX, OP_ALR, OP_ANC, OP_AND, OP_ARR, OP_ASL, OP_AXS, OP_BCC, OP_BCS, OP_BEQ, OP_BIT, OP_BMI, OP_BNE, OP_BPL,
@@ -22,7 +22,7 @@ struct opcode_tbl_entry {
   int bytes;
   int cycles;
   int page_cross_cycles;
-};
+} opcode_tbl_entry;
 
 extern struct opcode_tbl_entry opcode_tbl[];
 

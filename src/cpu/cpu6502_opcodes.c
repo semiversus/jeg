@@ -258,6 +258,5 @@ struct opcode_tbl_entry opcode_tbl[256]={
   {"NOP", OP_NOP, ADR_ABSOLUTE_X      , 3, 4, 1}, // 0xFC
   {"SBC", OP_SBC, ADR_ABSOLUTE_X      , 3, 4, 1}, // 0xFD
   {"INC", OP_INC, ADR_ABSOLUTE_X      , 3, 7, 0}, // 0xFE
-  {"ISC", OP_ISC, ADR_ABSOLUTE_X      , 0, 7, 0}, // 0xFF
-
-}
+  {"ISC", OP_ISC, ADR_ABSOLUTE_X      , 0, 7, 0}  // 0xFF
+};
