@@ -17,10 +17,13 @@ void cpu6502_reset(cpu6502_t *cpu) {
   cpu->reg_PC=cpu->read(0xFFFC)+(cpu->read(0xFFFD)<<8);
   cpu->reg_SP=0xFD; // reset stack pointer
   SET_FLAGS(0x24); // set following status flags: UNUSED, INTERRUPT
+  cpu->cycle_number=0;
+  cpu->interrupt_pending=INTERRUPT_NONE;
+  cpu->stall_cycles=0;
 }
 
 #define RECALC_ZN(v) do{ \
-    cpu->status_Z=(v)?1:0; \
+    cpu->status_Z=(v)?0:1; \
     cpu->status_N=(v)&0x80?1:0; \
   } while(0)
 
@@ -38,7 +41,7 @@ void cpu6502_reset(cpu6502_t *cpu) {
 
 #define READ16(adr) (cpu->read(adr)|(cpu->read((adr)+1)<<8))
 
-#define READ16BUG(adr) (cpu->read(adr)|((cpu->read((adr)&0xFF00+((adr)+1)&0xFF))<<8))
+#define READ16BUG(adr) (cpu->read(adr)|((cpu->read( ((adr)&0xFF00) + (((adr)+1)&0xFF ) )<<8)))
 
 #define PAGE_DIFFERS(a,b) ((a)&0xFF00!=(b)&0xFF00)
 
@@ -70,7 +73,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
     }
 
     // check for interrupts
-    if (cpu->interrupt_pending) {
+    if (cpu->interrupt_pending!=INTERRUPT_NONE) {
       PUSH(cpu->reg_PC>>8); // high byte of program counter to stack
       PUSH(cpu->reg_PC); // low byte
       PUSH(GET_FLAGS() | 0x10); // push status flags to stack
@@ -86,7 +89,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
     }
 
     // read op code
-    opcode=opcode_tbl[cpu->read(cpu->reg_PC++)];
+    opcode=opcode_tbl[cpu->read(cpu->reg_PC)];
 
     // handle address mode
     switch (opcode.address_mode) {
@@ -111,7 +114,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         address=0;
         break;
       case ADR_INDEXED_INDIRECT:
-        address=READ16BUG(cpu->read(cpu->reg_PC+1)+cpu->reg_X);
+        address=READ16BUG((cpu->read(cpu->reg_PC+1)+cpu->reg_X)&0xFF);
         break;
       case ADR_INDIRECT:
         address=READ16BUG(READ16(cpu->reg_PC+1));
@@ -130,13 +133,13 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         }
         break;
       case ADR_ZERO_PAGE:
-        address=cpu->read(cpu->reg_PC+1);
+        address=cpu->read(cpu->reg_PC+1)&0xFF;
         break;
       case ADR_ZERO_PAGE_X:
-        address=cpu->read(cpu->reg_PC+1)+cpu->reg_X;
+        address=(cpu->read(cpu->reg_PC+1)+cpu->reg_X)&0xFF;
         break;
       case ADR_ZERO_PAGE_Y:
-        address=cpu->read(cpu->reg_PC+1)+cpu->reg_Y;
+        address=(cpu->read(cpu->reg_PC+1)+cpu->reg_Y)&0xFF;
         break;
     }
 
@@ -183,8 +186,8 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
       case OP_BIT:
         temp_value=cpu->read(address);
         cpu->status_V=(temp_value&0x40)?1:0;
-        cpu->status_Z=(temp_value&cpu->reg_A)?1:0;
-        cpu->status_N=temp_value?1:0;
+        cpu->status_Z=(temp_value&cpu->reg_A)?0:1;
+        cpu->status_N=temp_value&0x80?1:0;
         break;
       case OP_BMI:
         BRANCH(cpu->status_N);
@@ -196,6 +199,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         BRANCH(!cpu->status_N);
         break;
       case OP_BRK:
+        cpu->reg_PC++;
         PUSH(cpu->reg_PC>>8); // high byte of program counter to stack
         PUSH(cpu->reg_PC); // low byte
         PUSH(GET_FLAGS() | 0x10); // push status flags to stack
@@ -325,55 +329,58 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         PUSH(GET_FLAGS()|0x10);
         break;
       case OP_PLA:
-        cpu->reg_SP=(cpu->reg_SP+1)&0xFF; 
-        cpu->reg_A=cpu->read(0x100|cpu->reg_SP); 
+        cpu->reg_SP=(cpu->reg_SP+1)&0xFF;
+        cpu->reg_A=cpu->read(0x100|cpu->reg_SP);
         RECALC_ZN(cpu->reg_A);
         break;
       case OP_PLP:
-        cpu->reg_SP=(cpu->reg_SP+1)&0xFF; 
-        SET_FLAGS(cpu->read(0x100|cpu->reg_SP)&0xEF|0x20); 
+        cpu->reg_SP=(cpu->reg_SP+1)&0xFF;
+        SET_FLAGS(cpu->read(0x100|cpu->reg_SP)&0xEF|0x20);
         break;
       case OP_ROL:
         if (opcode.address_mode==ADR_ACCUMULATOR) {
-          cpu->reg_A=((cpu->reg_A<<1)&0xFF)+(cpu->reg_A>>7);
-          cpu->status_C=cpu->reg_A&0x01?1:0;
+          cpu->reg_A=(cpu->reg_A<<1)+cpu->status_C;
+          cpu->status_C=cpu->reg_A&0x100?1:0;
+          cpu->reg_A&=0xFF;
           RECALC_ZN(cpu->reg_A);
         }
         else {
           temp_value=cpu->read(address);
-          temp_value=((temp_value<<1)&0xFF)+(temp_value>>7);
-          cpu->status_C=temp_value&0x01?1:0;
+          temp_value=(temp_value<<1)+cpu->status_C;
+          cpu->status_C=temp_value&0x100?1:0;
+          temp_value&=0xFF;
           cpu->write(address, temp_value);
           RECALC_ZN(temp_value);
         }
         break;
       case OP_ROR:
         if (opcode.address_mode==ADR_ACCUMULATOR) {
-          cpu->reg_A=(cpu->reg_A>>1)+((cpu->reg_A&0x01)<<7);
-          cpu->status_C=cpu->reg_A&0x80?1:0;
+          cpu->reg_A|=cpu->status_C<<8;
+          cpu->status_C=cpu->reg_A&0x01;
+          cpu->reg_A>>=1;
           RECALC_ZN(cpu->reg_A);
         }
         else {
-          temp_value=cpu->read(address);
-          temp_value=(temp_value>>1)+((temp_value&0x01)<<7);
-          cpu->status_C=temp_value&0x80?1:0;
+          temp_value=cpu->read(address)|(cpu->status_C<<8);
+          cpu->status_C=temp_value&0x01;
+          temp_value>>=1;
           cpu->write(address, temp_value);
           RECALC_ZN(temp_value);
         }
         break;
       case OP_RTI:
-        cpu->reg_SP=(cpu->reg_SP+1)&0xFF; 
-        SET_FLAGS(cpu->read(0x100|cpu->reg_SP)&0xEF|0x20); 
-        cpu->reg_SP=(cpu->reg_SP+1)&0xFF; 
-        cpu->reg_PC=cpu->read(0x100|cpu->reg_SP); 
-        cpu->reg_SP=(cpu->reg_SP+1)&0xFF; 
-        cpu->reg_PC+=cpu->read(0x100|cpu->reg_SP)<<8; 
+        cpu->reg_SP=(cpu->reg_SP+1)&0xFF;
+        SET_FLAGS(cpu->read(0x100|cpu->reg_SP)&0xEF|0x20);
+        cpu->reg_SP=(cpu->reg_SP+1)&0xFF;
+        cpu->reg_PC=cpu->read(0x100|cpu->reg_SP);
+        cpu->reg_SP=(cpu->reg_SP+1)&0xFF;
+        cpu->reg_PC+=cpu->read(0x100|cpu->reg_SP)<<8;
         break;
       case OP_RTS:
-        cpu->reg_SP=(cpu->reg_SP+1)&0xFF; 
-        cpu->reg_PC=cpu->read(0x100|cpu->reg_SP); 
-        cpu->reg_SP=(cpu->reg_SP+1)&0xFF; 
-        cpu->reg_PC+=cpu->read(0x100|cpu->reg_SP)<<8; 
+        cpu->reg_SP=(cpu->reg_SP+1)&0xFF;
+        cpu->reg_PC=cpu->read(0x100|cpu->reg_SP);
+        cpu->reg_SP=(cpu->reg_SP+1)&0xFF;
+        cpu->reg_PC+=cpu->read(0x100|cpu->reg_SP)<<8;
         cpu->reg_PC+=1;
         break;
       case OP_SBC:

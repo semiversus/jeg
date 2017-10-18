@@ -6,7 +6,7 @@
 typedef enum {INTERRUPT_NONE=0, INTERRUPT_NMI, INTERRUPT_IRQ} cpu6502_interrupt_enum_t;
 
 typedef int (*cpu6502_read_func_t) (int address); // read data [8bit] from address [16bit]
-typedef int (*cpu6502_write_func_t) (int address, int value); // write data [8bit] to address [16bit]
+typedef void (*cpu6502_write_func_t) (int address, int value); // write data [8bit] to address [16bit]
 
 typedef struct cpu6502_t {
   // internal registers
