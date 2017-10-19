@@ -61,7 +61,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
   struct opcode_tbl_entry opcode;
   int cycles_passed; // cycles used in one iteration
   int address; // calculated address for memory interaction
-  int temp_value; // temporary value used for calculation
+  int temp_value, temp_value2; // temporary value used for calculation
 
   do {
     cycles_passed=0;
@@ -150,11 +150,12 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
 
     switch(opcode.operation) {
       case OP_ADC:
-        cpu->reg_A=cpu->reg_A+cpu->read(address)+cpu->status_C;
-        cpu->status_C=cpu->reg_A>0xFF?1:0;
-        cpu->status_V=cpu->reg_A>0x7F?1:0;
+        temp_value2=cpu->read(address);
+        temp_value=cpu->reg_A+temp_value2+cpu->status_C;
+        cpu->status_C=temp_value>0xFF?1:0;
+        cpu->status_V=(~(cpu->reg_A^temp_value2))&(cpu->reg_A^temp_value)&0x80?1:0;
+        cpu->reg_A=temp_value&0xFF;
         RECALC_ZN(cpu->reg_A);
-        cpu->reg_A&=0xFF;
         break;
       case OP_AND:
         cpu->reg_A=cpu->reg_A&cpu->read(address);
@@ -384,11 +385,12 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         cpu->reg_PC+=1;
         break;
       case OP_SBC:
-        cpu->reg_A=cpu->reg_A-cpu->read(address)-(1-cpu->status_C);
-        cpu->status_C=cpu->reg_A>=0?1:0;
-        cpu->status_V=cpu->reg_A>127||cpu->reg_A<-128?1:0;
+        temp_value2=cpu->read(address);
+        temp_value=cpu->reg_A-temp_value2-(1-cpu->status_C);
+        cpu->status_C=temp_value>=0?1:0;
+        cpu->status_V=(cpu->reg_A^temp_value2)&(cpu->reg_A^temp_value)&0x80?1:0;
+        cpu->reg_A=temp_value&0xFF;
         RECALC_ZN(cpu->reg_A);
-        cpu->reg_A&=0xFF;
         break;
       case OP_SEC:
         cpu->status_C=1;
