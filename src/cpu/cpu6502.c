@@ -1,5 +1,6 @@
 #include "cpu6502.h"
 #include "cpu6502_opcodes.h"
+#include "cpu6502_debug.h"
 
 #define SET_FLAGS(v) do{ \
     cpu->status_C=(v)&0x01; \
@@ -43,7 +44,7 @@ void cpu6502_reset(cpu6502_t *cpu) {
 
 #define READ16BUG(adr) (cpu->read(adr)|((cpu->read( ((adr)&0xFF00) + (((adr)+1)&0xFF ) )<<8)))
 
-#define PAGE_DIFFERS(a,b) ((a)&0xFF00!=(b)&0xFF00)
+#define PAGE_DIFFERS(a,b) (((a)&0xFF00)!=((b)&0xFF00))
 
 #define BRANCH(c) do { \
     if (c) { \
@@ -60,7 +61,7 @@ void cpu6502_reset(cpu6502_t *cpu) {
 int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
   struct opcode_tbl_entry opcode;
   int cycles_passed; // cycles used in one iteration
-  int address; // calculated address for memory interaction
+  int address=0; // calculated address for memory interaction
   int temp_value, temp_value2; // temporary value used for calculation
 
   do {
@@ -152,8 +153,20 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
       case OP_ADC:
         temp_value2=cpu->read(address);
         temp_value=cpu->reg_A+temp_value2+cpu->status_C;
-        cpu->status_C=temp_value>0xFF?1:0;
-        cpu->status_V=(~(cpu->reg_A^temp_value2))&(cpu->reg_A^temp_value)&0x80?1:0;
+        if (cpu->status_D) { // bcd mode
+          if (( (cpu->reg_A&0x0F)+(temp_value2&0x0F)+cpu->status_C)>9) {
+            temp_value+=6;
+          }
+          cpu->status_V=(~(cpu->reg_A^temp_value2))&(cpu->reg_A^temp_value)&0x80?1:0;
+          if (temp_value>0x99) {
+            temp_value+=96;
+          }
+          cpu->status_C=temp_value>0x99?1:0;
+        }
+        else {
+          cpu->status_C=temp_value>0xFF?1:0;
+          cpu->status_V=(~(cpu->reg_A^temp_value2))&(cpu->reg_A^temp_value)&0x80?1:0;
+        }
         cpu->reg_A=temp_value&0xFF;
         RECALC_ZN(cpu->reg_A);
         break;
@@ -336,7 +349,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         break;
       case OP_PLP:
         cpu->reg_SP=(cpu->reg_SP+1)&0xFF;
-        SET_FLAGS(cpu->read(0x100|cpu->reg_SP)&0xEF|0x20);
+        SET_FLAGS((cpu->read(0x100|cpu->reg_SP)&0xEF)|0x20);
         break;
       case OP_ROL:
         if (opcode.address_mode==ADR_ACCUMULATOR) {
@@ -371,7 +384,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         break;
       case OP_RTI:
         cpu->reg_SP=(cpu->reg_SP+1)&0xFF;
-        SET_FLAGS(cpu->read(0x100|cpu->reg_SP)&0xEF|0x20);
+        SET_FLAGS((cpu->read(0x100|cpu->reg_SP)&0xEF)|0x20);
         cpu->reg_SP=(cpu->reg_SP+1)&0xFF;
         cpu->reg_PC=cpu->read(0x100|cpu->reg_SP);
         cpu->reg_SP=(cpu->reg_SP+1)&0xFF;
@@ -385,12 +398,24 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         cpu->reg_PC+=1;
         break;
       case OP_SBC:
+        // TODO: ugly hack
         temp_value2=cpu->read(address);
-        temp_value=cpu->reg_A-temp_value2-(1-cpu->status_C);
-        cpu->status_C=temp_value>=0?1:0;
+        temp_value=(cpu->reg_A-temp_value2-(1-cpu->status_C))&0xFFFF;
+        RECALC_ZN(temp_value&0xFF);
         cpu->status_V=(cpu->reg_A^temp_value2)&(cpu->reg_A^temp_value)&0x80?1:0;
+        if (cpu->status_D) { // bcd mode
+          if ( ((cpu->reg_A&0x0F)-(1-cpu->status_C))<(temp_value2&0x0F)) {
+            temp_value-=6;
+          }
+          if (temp_value>0x99) {
+            temp_value-=0x60;
+          }
+          cpu->status_C=temp_value<0x100?1:0;
+        }
+        else {
+          cpu->status_C=temp_value<0x100?1:0;
+        }
         cpu->reg_A=temp_value&0xFF;
-        RECALC_ZN(cpu->reg_A);
         break;
       case OP_SEC:
         cpu->status_C=1;
@@ -457,6 +482,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
     }
 
     cycles_to_run-=cycles_passed;
+    cpu->cycle_number+=cycles_passed;
   } while (cycles_to_run>0);
 
   return cycles_passed;
@@ -472,6 +498,8 @@ void cpu6502_trigger_interrupt(cpu6502_t *cpu, cpu6502_interrupt_enum_t interrup
       if (cpu->status_I) {
         cpu->interrupt_pending=INTERRUPT_NMI;
       }
+      break;
+    default:
       break;
   }
 }
