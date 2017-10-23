@@ -3,7 +3,10 @@
 #include "cpu6502_debug.h"
 
 cpu6502_t cpu;
-int data[65536];
+
+int data[65536]={
+  #include "rom.inc"
+};
 
 int _read(int adr) {
   return data[adr];
@@ -13,14 +16,7 @@ void _write(int adr, int value) {
   data[adr]=value;
 }
 
-int main(void) {
-  FILE *test_file;
-  test_file=fopen("6502_functional_test.bin", "rb");
-  for (int i=0; i<65536; i++) {
-    data[i]=fgetc(test_file);
-  }
-  fclose(test_file);
-
+int main(int argc, char *argv[]) {
   cpu.read=_read;
   cpu.write=_write;
 
