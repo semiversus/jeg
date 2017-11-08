@@ -5,8 +5,8 @@
 
 typedef enum {INTERRUPT_NONE=0, INTERRUPT_NMI, INTERRUPT_IRQ} cpu6502_interrupt_enum_t;
 
-typedef int (*cpu6502_read_func_t) (int address); // read data [8bit] from address [16bit]
-typedef void (*cpu6502_write_func_t) (int address, int value); // write data [8bit] to address [16bit]
+typedef int (*cpu6502_read_func_t) (void *, int address); // read data [8bit] from address [16bit]
+typedef void (*cpu6502_write_func_t) (void *, int address, int value); // write data [8bit] to address [16bit]
 
 typedef struct cpu6502_t {
   // internal registers
@@ -32,9 +32,12 @@ typedef struct cpu6502_t {
   cpu6502_interrupt_enum_t interrupt_pending; // type of pending interrupt
 
   // memory interface
+  void *reference; // pointer to a reference, added as argument to read and write functions
   cpu6502_read_func_t read;
   cpu6502_write_func_t write;
 } cpu6502_t;
+
+void cpu6502_init(cpu6502_t *cpu, void *reference, cpu6502_read_func_t read, cpu6502_write_func_t write);
 
 void cpu6502_reset(cpu6502_t *cpu); // reset cpu to powerup state
 int cpu6502_run(cpu6502_t *cpu, int n_cycles); // run cpu for (at least) n_cycles; a started instruction will not be "truncated";
