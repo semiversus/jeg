@@ -1,7 +1,7 @@
 .PHONY: all clean
 
 SRCS_CPU6502=cpu6502.c cpu6502_opcodes.c cpu6502_debug.c
-SRCS_NES=$(SRCS_CPU6502) ppu.c nes.c
+SRCS_NES=$(SRCS_CPU6502) ppu.c nes.c cartridge.c
 SRCS_UI=$(SRCS_NES) ui.c
 
 all: jeg test_klaus2m5

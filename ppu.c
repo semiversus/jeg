@@ -1,5 +1,13 @@
 #include "ppu.h"
 
+void ppu_init(ppu_t *ppu, void *reference, ppu_read_func_t read, ppu_write_func_t write, ppu_update_frame_func_t update_frame) {
+  ppu_reset(ppu);
+  ppu->reference=reference;
+  ppu->read=read;
+  ppu->write=write;
+  ppu->update_frame=update_frame;
+}
+
 void ppu_reset(ppu_t *ppu) {
 }
 

@@ -23,7 +23,7 @@ static const rgb_entry_t rgb_palette[64] = {
 
 uint32_t sdl_palette[64];
 
-void update_frame(uint8_t* frame_data, int width, int height) {
+void update_frame(void *reference, uint8_t* frame_data, int width, int height) {
   uint32_t *pixmem=screen->pixels;
 
   if(SDL_MUSTLOCK(screen)) {
@@ -87,16 +87,16 @@ int main(int argc, char* argv[]) {
 						case SDLK_ESCAPE: 
               quit=1;
               break;
-						case SDLK_LEFT: // controller Left
+						case SDLK_RIGHT: // controller Right
 							key_value=0x80;
 							break;
-						case SDLK_RIGHT: // controller Right
+						case SDLK_LEFT: // controller Left
 							key_value=0x40;
 							break;
-						case SDLK_UP: // controller Up
+						case SDLK_DOWN: // controller Down
 							key_value=0x20;
 							break;
-						case SDLK_DOWN: // controller Down
+						case SDLK_UP: // controller Up
 							key_value=0x10;
 							break;
 						case SDLK_q: // controller Start
@@ -105,10 +105,10 @@ int main(int argc, char* argv[]) {
 						case SDLK_w: // controller Select
 							key_value=0x04;
 							break;
-						case SDLK_a: // controller A
+						case SDLK_s: // controller B
 							key_value=0x02;
 							break;
-						case SDLK_s: // controller B
+						case SDLK_a: // controller A
 							key_value=0x01;
 							break;
 					}
