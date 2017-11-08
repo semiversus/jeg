@@ -36,6 +36,23 @@ static void cpu6502_bus_write (void *nes, int address, int value) {
   if (address<0x2000) {
     ((nes_t*)nes)->ram_data[address%0x800]=value;
   }
+  else if (address<0x4000) {
+    ppu_write(&((nes_t*)nes)->ppu, 0x2000+address%8, value, ((nes_t*)nes)->cpu.cycle_number);
+  }
+  else if (address==0x4014) {
+    ppu_write(&((nes_t*)nes)->ppu, address, value, ((nes_t*)nes)->cpu.cycle_number);
+  }
+  else if (address==0x4016 && value&0x01) {
+    value=((nes_t*)nes)->controller_read();
+    ((nes_t*)nes)->controller_data[0]=value&0xFF;
+    ((nes_t*)nes)->controller_data[1]=(value>>8)&0xFF;
+  }
+  else if (address>=0x6000) {
+    cartridge_write_prg(&((nes_t*)nes)->cartridge, address, value);
+  }
+  else {
+    // TODO: log this event
+  }
 }
 
 static int ppu_bus_read (void *nes, int address) {
