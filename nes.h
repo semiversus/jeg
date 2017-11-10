@@ -19,10 +19,8 @@ typedef struct nes_t {
 } nes_t;
 
 void nes_init(nes_t *nes, ppu_update_frame_func_t update_frame, controller_read_func_t controller_read);
-
+int nes_load_cartdrige(nes_t *nes, uint8_t *data, uint32_t size);
 void nes_reset(nes_t *nes);
-
-void nes_load_rom(nes_t *nes, char *filename);
 
 void nes_iterate_frame(nes_t *nes); // run cpu until next complete frame
 

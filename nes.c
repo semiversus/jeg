@@ -1,30 +1,31 @@
 #include "nes.h"
 #include <string.h>
 
-static int cpu6502_bus_read (void *nes, int address) {
+static int cpu6502_bus_read (void *ref, int address) {
+  nes_t* nes=(nes_t *)ref;
   int value;
 
   if (address<0x2000) {
-    return ((nes_t*)nes)->ram_data[address%0x800];
+    return nes->ram_data[address%0x800];
   }
   else if (address<0x4000) {
-    return ppu_read(&((nes_t*)nes)->ppu, 0x2000+address%8, ((nes_t*)nes)->cpu.cycle_number);
+    return ppu_read(&nes->ppu, 0x2000+address%8, nes->cpu.cycle_number);
   }
   else if (address==0x4014) {
-    return ppu_read(&((nes_t*)nes)->ppu, address, ((nes_t*)nes)->cpu.cycle_number);
+    return ppu_read(&nes->ppu, address, nes->cpu.cycle_number);
   }
   else if (address==0x4016) {
-    value=((nes_t*)nes)->controller_data[0]&1;
-    ((nes_t*)nes)->controller_data[0]=(((nes_t*)nes)->controller_data[0]>>1)|0x80;
+    value=nes->controller_data[0]&1;
+    nes->controller_data[0]=(nes->controller_data[0]>>1)|0x80;
     return value;
   }
   else if (address==0x4017) {
-    value=((nes_t*)nes)->controller_data[1]&1;
-    ((nes_t*)nes)->controller_data[1]=(((nes_t*)nes)->controller_data[1]>>1)|0x80;
+    value=nes->controller_data[1]&1;
+    nes->controller_data[1]=(nes->controller_data[1]>>1)|0x80;
     return value;
   }
   else if (address>=0x6000) {
-    return cartridge_read_prg(&((nes_t*)nes)->cartridge, address);
+    return cartridge_read_prg(&nes->cartridge, address);
   }
   else {
     // TODO: log this event
@@ -32,30 +33,41 @@ static int cpu6502_bus_read (void *nes, int address) {
   }
 }
 
-static void cpu6502_bus_write (void *nes, int address, int value) {
+static void cpu6502_bus_write (void *ref, int address, int value) {
+  nes_t* nes=(nes_t *)ref;
+
   if (address<0x2000) {
-    ((nes_t*)nes)->ram_data[address%0x800]=value;
+    nes->ram_data[address%0x800]=value;
   }
   else if (address<0x4000) {
-    ppu_write(&((nes_t*)nes)->ppu, 0x2000+address%8, value, ((nes_t*)nes)->cpu.cycle_number);
+    ppu_write(&nes->ppu, 0x2000+address%8, value, nes->cpu.cycle_number);
   }
   else if (address==0x4014) {
-    ppu_write(&((nes_t*)nes)->ppu, address, value, ((nes_t*)nes)->cpu.cycle_number);
+    ppu_write(&nes->ppu, address, value, nes->cpu.cycle_number);
   }
   else if (address==0x4016 && value&0x01) {
-    value=((nes_t*)nes)->controller_read();
-    ((nes_t*)nes)->controller_data[0]=value&0xFF;
-    ((nes_t*)nes)->controller_data[1]=(value>>8)&0xFF;
+    value=nes->controller_read();
+    nes->controller_data[0]=value&0xFF;
+    nes->controller_data[1]=(value>>8)&0xFF;
   }
   else if (address>=0x6000) {
-    cartridge_write_prg(&((nes_t*)nes)->cartridge, address, value);
+    cartridge_write_prg(&nes->cartridge, address, value);
   }
   else {
     // TODO: log this event
   }
 }
 
-static int ppu_bus_read (void *nes, int address) {
+static int ppu_bus_read (void *ref, int address) {
+  nes_t* nes=(nes_t *)ref;
+
+  address%=0x4000;
+  if (address<0x2000) {
+    return cartridge_read_chr(&nes->cartridge, address);
+  }
+  else if (address<0x3F00) {
+    //TODO
+  }
 }
 
 static void ppu_bus_write (void *nes, int address, int value) {
@@ -74,7 +86,10 @@ void nes_reset(nes_t *nes) {
   memset(&nes->ram_data, 0, 0x800);
 }
 
-void nes_load_rom(nes_t *nes, char *filename);
+int nes_load_cartdrige(nes_t *nes, uint8_t *data, uint32_t size) {
+  cartridge_load(&nes->cartridge, data, size);
+  nes_reset(nes);
+}
 
 void nes_iterate_frame(nes_t *nes); // run cpu until next complete frame
 
