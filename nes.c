@@ -1,4 +1,5 @@
 #include "nes.h"
+#include "cpu6502_debug.h"
 #include <string.h>
 
 static int cpu6502_bus_read (void *ref, int address) {
@@ -46,7 +47,7 @@ static void cpu6502_bus_write (void *ref, int address, int value) {
     ppu_write(&nes->ppu, address, value, nes->cpu.cycle_number);
   }
   else if (address==0x4016 && value&0x01) {
-    value=nes->controller_read();
+    value=nes->controller_read(nes);
     nes->controller_data[0]=value&0xFF;
     nes->controller_data[1]=(value>>8)&0xFF;
   }
@@ -73,11 +74,11 @@ static int ppu_bus_read (void *ref, int address) {
 static void ppu_bus_write (void *nes, int address, int value) {
 }
 
-void nes_init(nes_t *nes, ppu_update_frame_func_t update_frame, controller_read_func_t controller_read) {
-  nes_reset(nes);
-  nes->controller_read=controller_read;
+void nes_init(nes_t *nes, void *reference, ppu_update_frame_func_t update_frame, controller_read_func_t controller_read) {
   cpu6502_init(&nes->cpu, nes, cpu6502_bus_read, cpu6502_bus_write);
   ppu_init(&nes->ppu, nes, ppu_bus_read, ppu_bus_write, update_frame);
+  nes->reference=reference;
+  nes->controller_read=controller_read;
 }
 
 void nes_reset(nes_t *nes) {
@@ -86,13 +87,15 @@ void nes_reset(nes_t *nes) {
   memset(&nes->ram_data, 0, 0x800);
 }
 
-int nes_load_cartdrige(nes_t *nes, uint8_t *data, uint32_t size) {
-  cartridge_load(&nes->cartridge, data, size);
+int nes_setup_cartridge(nes_t *nes, uint8_t *data, uint32_t size) {
+  cartridge_setup(&nes->cartridge, data, size);
   nes_reset(nes);
 }
 
-void nes_iterate_frame(nes_t *nes); // run cpu until next complete frame
+void nes_iterate_frame(nes_t *nes) {
+  cpu6502_dump(&nes->cpu);
+  cpu6502_run(&nes->cpu, 0);
+}
 
 void nes_store_state(nes_t *nes, uint8_t *data); // stores state to given array
 void nes_load_state(nes_t *nes, uint8_t *data); // load state to given array
-

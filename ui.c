@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <SDL.h>
 #include "nes.h"
 
@@ -45,22 +46,50 @@ void update_frame(void *reference, uint8_t* frame_data, int width, int height) {
   SDL_Flip(screen); 
 }
 
-uint16_t controller_read(void) {
+uint16_t controller_read(void *reference) {
   return controller_data;
 }
 
 int main(int argc, char* argv[]) {
   nes_t nes_console;
   SDL_Event event;
+  FILE *rom_file;
+  uint8_t *rom_data;
+  uint32_t rom_size;
+
+  // load rom file
+  if (argc<2) {
+    printf("need rom file as argument\n");
+    return 1;
+  }
+
+  rom_file=fopen(argv[1], "rb");
+
+  if (rom_file==NULL) {
+    printf("not able to open rom file %s\n", argv[1]);
+    return 2;
+  }
+
+  fseek(rom_file, 0, SEEK_END);
+  rom_size=ftell(rom_file);
+  fseek(rom_file, 0, SEEK_SET);
+  rom_data=malloc(rom_size);
+  if (fread(rom_data, 1, rom_size, rom_file)!=rom_size) {
+    printf("unable to read data from rom file %s\n", argv[1]);
+		return 3;
+  }
+  fclose(rom_file);
 
   // init SDL
   if (SDL_Init(SDL_INIT_VIDEO) < 0 ) {
-		return 1;
+    printf("unable to init sdl video\n");
+		return 4;
   }
    
-  if (!(screen = SDL_SetVideoMode(256, 240, 32, SDL_FULLSCREEN|SDL_HWSURFACE))) {
+  if (!(screen = SDL_SetVideoMode(256, 240, 32, /*SDL_FULLSCREEN|*/SDL_HWSURFACE))) {
     SDL_Quit();
-    return 1;
+    printf("unable to set sdl video mode\n");
+    return 5;
   }
 
   for(int idx=0; idx<64; idx++) {
@@ -68,14 +97,19 @@ int main(int argc, char* argv[]) {
   }
 
   // init nes
-  nes_init(&nes_console, update_frame, controller_read);
+  nes_init(&nes_console, 0, update_frame, controller_read);
+  if (nes_setup_cartridge(&nes_console, rom_data, rom_size)!=0) {
+    printf("unable to parse rom file\n");
+    return 6;
+  }
   
   int quit = 0;
   uint16_t key_value;
-
   
+  nes_iterate_frame(&nes_console);
+
   while(!quit) {
-	  while(SDL_PollEvent(&event)) {    
+	  while(SDL_PollEvent(&event)) {
 			switch (event.type) {
 				case SDL_QUIT:
 					quit=1;
@@ -84,9 +118,6 @@ int main(int argc, char* argv[]) {
 				case SDL_KEYUP:
           key_value=0;
 					switch (event.key.keysym.sym) {
-						case SDLK_ESCAPE: 
-              quit=1;
-              break;
 						case SDLK_RIGHT: // controller Right
 							key_value=0x80;
 							break;
@@ -114,6 +145,14 @@ int main(int argc, char* argv[]) {
 					}
 
           if (event.type==SDL_KEYDOWN) {
+					  switch (event.key.keysym.sym) {
+              case SDLK_ESCAPE: 
+                quit=1;
+                break;
+              case SDLK_n:
+                nes_iterate_frame(&nes_console);
+                break;
+            }
             controller_data|=key_value;
           }
           else {
@@ -124,6 +163,7 @@ int main(int argc, char* argv[]) {
 	  }
   }
 
+  free(rom_data);
   SDL_Quit();
   
   return 0;

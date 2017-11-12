@@ -14,7 +14,6 @@
   } while(0)
 
 void cpu6502_init(cpu6502_t *cpu, void *reference, cpu6502_read_func_t read, cpu6502_write_func_t write) {
-  cpu6502_reset(cpu);
   cpu->reference=reference;
   cpu->read=read;
   cpu->write=write;

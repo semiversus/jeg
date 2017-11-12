@@ -13,7 +13,7 @@ typedef struct cartridge_t {
   int mirror; // 0-horizontal, 1-vertical, 2-none
 } cartridge_t;
 
-int cartridge_load(cartridge_t *cartridge, uint8_t *data, uint32_t size);
+int cartridge_setup(cartridge_t *cartridge, uint8_t *data, uint32_t size);
 
 // access cpu memory bus
 int cartridge_read_prg(cartridge_t *cartridge, int adr);

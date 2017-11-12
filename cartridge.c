@@ -1,7 +1,7 @@
 #include "cartridge.h"
 #include <stdio.h>
 
-int cartridge_load(cartridge_t *cartridge, uint8_t *data, uint32_t size) {
+int cartridge_setup(cartridge_t *cartridge, uint8_t *data, uint32_t size) {
   // check minimum size (header is 16 bytes)
   if (size<16) {
     return 1;
@@ -17,8 +17,14 @@ int cartridge_load(cartridge_t *cartridge, uint8_t *data, uint32_t size) {
   cartridge->mirror=(data[6]&0x01)+((data[6]>>2)&0x02);
   cartridge->mapper=(data[6]>>4)+(data[7]&0xF0);
 
+  if (size<cartridge->prg_size+cartridge->chr_size+16+(data[6]&0x04?512:0)) {
+    return 3;
+  }
+
   cartridge->prg_memory=data+(data[6]&0x04?512:0)+16; // skip header and trainer data
   cartridge->chr_memory=cartridge->prg_memory+cartridge->prg_size;
+
+  return 0;
 }
 
 
