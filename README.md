@@ -1,6 +1,6 @@
 # JEG Emulation Gathering
 
-Emulation Framework with Nintendo NES as main target.
+Catch-Up Emulation Framework with Nintendo NES as main target.
 
 ## Usefull projects during developlemt
 * [github:fogleman/nes](https://github.com/fogleman/nes) (Go, pixel based rendering)
