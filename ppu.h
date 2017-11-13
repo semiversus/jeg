@@ -31,7 +31,6 @@ typedef struct ppu_t {
   int register_data;
 
   // nmi flags
-  int nmi_occurred;
   int nmi_output;
   int nmi_previous;
   int nmi_delay;
@@ -58,7 +57,6 @@ typedef struct ppu_t {
   int buffered_data;
    
   // memory interface to vram and vrom
-  void *reference;
   ppu_read_func_t read;
   ppu_write_func_t write;
 
@@ -73,6 +71,6 @@ void ppu_reset(ppu_t *ppu);
 int ppu_read(ppu_t *ppu, int adr, uint64_t cycle_number); // read data [8bit] from address [16bit]
 void ppu_write(ppu_t *ppu, int adr, int value, uint64_t cycle_number); // write data [8bit] to address [16bit]
 
-int ppu_run(ppu_t *ppu, int n_cycles); // update given cycles, returns cycles until next complete frame
+int ppu_update(ppu_t *ppu); // update ppu to current cpu cycle, return number of cpu cycles to next frame
 
 #endif

@@ -21,20 +21,49 @@ void ppu_reset(ppu_t *ppu) {
   ppu->oam_address=0;
 }
 
-int ppu_read(ppu_t *ppu, int adr, uint64_t cycle_number) {
-  return 0;
-}
-
 #define NMI_CHANGE() do { \
-    if (ppu->nmi_output && ppu->nmi_occurred && !ppu->nmi_previous) { \
+    if (ppu->nmi_output && (ppu->ppustatus&0x80) && !ppu->nmi_previous) { \
       ppu->nmi_delay=15; \
     } \
-    ppu->nmi_previous=(ppu->nmi_output && ppu->nmi_occurred); \
+    ppu->nmi_previous=(ppu->nmi_output && (ppu->ppustatus&0x80)); \
   } while(0)
+
+int ppu_read(ppu_t *ppu, int adr, uint64_t cycle_number) {
+  int value, buffered;
+
+  switch (adr) {
+    case 0x2002:
+      value=(ppu->register_data&0x1F)|(ppu->ppustatus&0xE0);
+      ppu->ppustatus&=0x7F; // disable NMI occurred
+      NMI_CHANGE();
+      ppu->w=0;
+      return value;
+    case 0x2004:
+      return ppu->oam_data[ppu->oam_address];
+    case 0x2007:
+      value=ppu->read(ppu->nes->reference, ppu->v);
+      if (ppu->v%0x4000<0x3F00) {
+        buffered=ppu->buffered_data;
+        ppu->buffered_data=value;
+        value=buffered;
+      }
+      else {
+        ppu->buffered_data=ppu->read(ppu->nes->reference, ppu->v - 0x1000);
+      }
+      ppu->v+=(ppu->ppuctrl&0x04==0)?1:32;
+      return value;
+    default:
+      // TODO: should not happen
+      return 0;
+  }
+}
 
 void ppu_write(ppu_t *ppu, int adr, int value, uint64_t cycle_number) {
   int address_temp;
   printf("%04X %d (%ld)\n", adr, value, cycle_number);
+
+  ppu->register_data=value;
+
   switch (adr) {
     case 0x2000:
       ppu->ppuctrl=value;
@@ -76,21 +105,25 @@ void ppu_write(ppu_t *ppu, int adr, int value, uint64_t cycle_number) {
       }
       break;
     case 0x2007:
-      ppu->write(ppu->reference, ppu->v, value);
+      ppu->write(ppu->nes->reference, ppu->v, value);
       ppu->v+=(ppu->ppuctrl&0x04==0)?1:32;
       break;
-    case 0x2014:
+    case 0x4014:
       address_temp=value<<8;
       for(int i=0; i<256; i++) {
         ppu->oam_data[ppu->oam_address]=ppu->nes->cpu.read(ppu->nes->reference, address_temp);
         ppu->oam_address++;
         address_temp++;
       }
+      ppu->nes->cpu.stall_cycles+=513;
+      if (ppu->nes->cpu.cycle_number%2) {
+        ppu->nes->cpu.stall_cycles++;
+      }
       break;
   }
        
 }
 
-int ppu_run(ppu_t *ppu, int n_cycles) {
+int ppu_update(ppu_t *ppu) {
   return 0;
 }
