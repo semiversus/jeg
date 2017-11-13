@@ -29,7 +29,7 @@ void update_frame(void *reference, uint8_t* frame_data, int width, int height) {
 
   if(SDL_MUSTLOCK(screen)) {
     if(SDL_LockSurface(screen) < 0) {
-			return;
+      return;
     }
   }
   
@@ -40,7 +40,7 @@ void update_frame(void *reference, uint8_t* frame_data, int width, int height) {
   }
 
   if(SDL_MUSTLOCK(screen)) {
-		SDL_UnlockSurface(screen);
+    SDL_UnlockSurface(screen);
   }
   
   SDL_Flip(screen); 
@@ -76,14 +76,14 @@ int main(int argc, char* argv[]) {
   rom_data=malloc(rom_size);
   if (fread(rom_data, 1, rom_size, rom_file)!=rom_size) {
     printf("unable to read data from rom file %s\n", argv[1]);
-		return 3;
+    return 3;
   }
   fclose(rom_file);
 
   // init SDL
   if (SDL_Init(SDL_INIT_VIDEO) < 0 ) {
     printf("unable to init sdl video\n");
-		return 4;
+    return 4;
   }
    
   if (!(screen = SDL_SetVideoMode(256, 240, 32, /*SDL_FULLSCREEN|*/SDL_HWSURFACE))) {
@@ -109,43 +109,43 @@ int main(int argc, char* argv[]) {
   nes_iterate_frame(&nes_console);
 
   while(!quit) {
-	  while(SDL_PollEvent(&event)) {
-			switch (event.type) {
-				case SDL_QUIT:
-					quit=1;
-					break;
-				case SDL_KEYDOWN:
-				case SDL_KEYUP:
+    while(SDL_PollEvent(&event)) {
+      switch (event.type) {
+        case SDL_QUIT:
+          quit=1;
+          break;
+        case SDL_KEYDOWN:
+        case SDL_KEYUP:
           key_value=0;
-					switch (event.key.keysym.sym) {
-						case SDLK_RIGHT: // controller Right
-							key_value=0x80;
-							break;
-						case SDLK_LEFT: // controller Left
-							key_value=0x40;
-							break;
-						case SDLK_DOWN: // controller Down
-							key_value=0x20;
-							break;
-						case SDLK_UP: // controller Up
-							key_value=0x10;
-							break;
-						case SDLK_q: // controller Start
-							key_value=0x08;
-							break;
-						case SDLK_w: // controller Select
-							key_value=0x04;
-							break;
-						case SDLK_s: // controller B
-							key_value=0x02;
-							break;
-						case SDLK_a: // controller A
-							key_value=0x01;
-							break;
-					}
+          switch (event.key.keysym.sym) {
+            case SDLK_RIGHT: // controller Right
+              key_value=0x80;
+              break;
+            case SDLK_LEFT: // controller Left
+              key_value=0x40;
+              break;
+            case SDLK_DOWN: // controller Down
+              key_value=0x20;
+              break;
+            case SDLK_UP: // controller Up
+              key_value=0x10;
+              break;
+            case SDLK_q: // controller Start
+              key_value=0x08;
+              break;
+            case SDLK_w: // controller Select
+              key_value=0x04;
+              break;
+            case SDLK_s: // controller B
+              key_value=0x02;
+              break;
+            case SDLK_a: // controller A
+              key_value=0x01;
+              break;
+          }
 
           if (event.type==SDL_KEYDOWN) {
-					  switch (event.key.keysym.sym) {
+            switch (event.key.keysym.sym) {
               case SDLK_ESCAPE: 
                 quit=1;
                 break;
@@ -157,10 +157,10 @@ int main(int argc, char* argv[]) {
           }
           else {
             controller_data&=~key_value;
-					}
+          }
           break;
-			}
-	  }
+      }
+    }
   }
 
   free(rom_data);
