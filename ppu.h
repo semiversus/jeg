@@ -14,6 +14,7 @@ typedef struct ppu_t {
 
   // ppu state
   uint64_t last_cycle_number;
+  uint32_t cycles_to_next_frame;
   int cycle;
   int scanline;
 
@@ -30,11 +31,6 @@ typedef struct ppu_t {
 
   int register_data;
 
-  // nmi flags
-  int nmi_output;
-  int nmi_previous;
-  int nmi_delay;
-
   // background temporary variables
   int name_table_byte;
   int attribute_table_byte;
@@ -46,7 +42,7 @@ typedef struct ppu_t {
   int sprite_count;
   uint32_t sprite_patterns[8];
   int sprite_positions[8];
-  int sprite_priories[8];
+  int sprite_priorities[8];
   int sprite_indicies[8];
 
   // memory accessable registers
@@ -61,6 +57,7 @@ typedef struct ppu_t {
   ppu_write_func_t write;
 
   // frame data interface
+  uint8_t frame_data[256*240];
   ppu_update_frame_func_t update_frame;
 } ppu_t;
 

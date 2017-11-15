@@ -27,7 +27,7 @@ typedef struct cpu6502_t {
   int status_N; // negative flag [Bit7]
 
   // emulation internals
-  uint64_t cycle_number; // number of actual cycle
+  uint64_t cycle_number; // number of actual cycle (measured in ppu cycles)
   int stall_cycles; // number of stall cycles
   cpu6502_interrupt_enum_t interrupt_pending; // type of pending interrupt
 
