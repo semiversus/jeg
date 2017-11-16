@@ -33,6 +33,7 @@ void ppu_init(ppu_t *ppu, nes_t *nes, ppu_read_func_t read, ppu_write_func_t wri
 
 void ppu_reset(ppu_t *ppu) {
   ppu->cycles_to_next_frame=89342;
+  ppu->last_cycle_number=0;
   ppu->cycle=340;
   ppu->scanline=240;
   ppu->ppuctrl=0;
@@ -40,6 +41,9 @@ void ppu_reset(ppu_t *ppu) {
   ppu->t=0;
   ppu->ppumask=0;
   ppu->oam_address=0;
+  for (int i=0; i<256*240; i++) {
+    ppu->frame_data[i]=0;
+  }
 }
 
 int ppu_read(ppu_t *ppu, int adr, uint64_t cycle_number) {
@@ -54,14 +58,14 @@ int ppu_read(ppu_t *ppu, int adr, uint64_t cycle_number) {
     case 0x2004:
       return ppu->oam_data[ppu->oam_address];
     case 0x2007:
-      value=ppu->read(ppu->nes->reference, ppu->v);
+      value=ppu->read(ppu->nes, ppu->v);
       if (ppu->v%0x4000<0x3F00) {
         buffered=ppu->buffered_data;
         ppu->buffered_data=value;
         value=buffered;
       }
       else {
-        ppu->buffered_data=ppu->read(ppu->nes->reference, ppu->v - 0x1000);
+        ppu->buffered_data=ppu->read(ppu->nes, ppu->v - 0x1000);
       }
       ppu->v+=((ppu->ppuctrl&PPUCTRL_INCREMENT)==0)?1:32;
       return value;
@@ -116,13 +120,13 @@ void ppu_write(ppu_t *ppu, int adr, int value, uint64_t cycle_number) {
       }
       break;
     case 0x2007:
-      ppu->write(ppu->nes->reference, ppu->v, value);
+      ppu->write(ppu->nes, ppu->v, value);
       ppu->v+=((ppu->ppuctrl&PPUCTRL_INCREMENT)==0)?1:32;
       break;
     case 0x4014:
       address_temp=value<<8;
       for(int i=0; i<256; i++) {
-        ppu->oam_data[ppu->oam_address]=ppu->nes->cpu.read(ppu->nes->reference, address_temp);
+        ppu->oam_data[ppu->oam_address]=ppu->nes->cpu.read(ppu->nes, address_temp);
         ppu->oam_address++;
         address_temp++;
       }
@@ -132,13 +136,57 @@ void ppu_write(ppu_t *ppu, int adr, int value, uint64_t cycle_number) {
       }
       break;
   }
-       
+}
+
+uint32_t fetch_sprite_pattern(ppu_t *ppu, int i, int row) {
+  int tile=ppu->oam_data[i*4+1];
+  int attributes=ppu->oam_data[i*4+2];
+  uint16_t address;
+
+  if (ppu->ppuctrl&PPUCTRL_SPRITE_SIZE==0) {
+    if (attributes&0x80==0x80) {
+      row=7-row;
+    }
+    address=0x1000*(ppu->ppuctrl&PPUCTRL_SPRITE_TABLE?1:0)+tile*16+row;
+  }
+  else {
+    if (attributes&0x80==0x80) {
+      row=15-row;
+    }
+    tile&=0xFE;
+    if (row>7) {
+      tile++;
+      row-=8;
+    }
+    address=0x1000*(tile&0x01)+tile*16+row;
+  }
+  int low_tile_byte=ppu->read(ppu->nes, address);
+  int high_tile_byte=ppu->read(ppu->nes, address+8);
+  uint32_t data;
+  for (int j=0; j<8; j++) {
+    int p1, p2;
+    if (attributes&0x40==0x40) {
+      p1=(low_tile_byte&0x01);
+      p2=(high_tile_byte&0x01)<<1;
+      low_tile_byte>>=1;
+      high_tile_byte>>=1;
+    }
+    else {
+      p1=(low_tile_byte&0x80)>>7;
+      p2=(high_tile_byte&0x80)>>6;
+      low_tile_byte<<=1;
+      high_tile_byte<<=1;
+    }
+    data<<=4;
+    data|=((attributes&3)<<2)|p1|p2;
+  }
+  return data;
 }
 
 int ppu_update(ppu_t *ppu) {
   int cycles; // cycles to run measured in ppu cycles
 
-  for(int cycles=0; cycles<ppu->nes->cpu.cycle_number*3 - ppu->last_cycle_number; cycles++) {
+  for(int cycles=0; cycles<3*(ppu->nes->cpu.cycle_number - ppu->last_cycle_number); cycles++) {
     // tick
     // TODO: every second frame is shorter
     ppu->cycle++;
@@ -208,16 +256,16 @@ int ppu_update(ppu_t *ppu) {
         switch (ppu->cycle%8) {
           uint32_t data;
           case 1: // fetch name table byte
-            ppu->name_table_byte=ppu->read(ppu->nes->reference, 0x2000|(ppu->v&0x00FF));
+            ppu->name_table_byte=ppu->read(ppu->nes, 0x2000|(ppu->v&0x00FF));
             break;
           case 3: // fetch attribute table byte
-            ppu->attribute_table_byte=((ppu->read(ppu->nes->reference, 0x23C0|(ppu->v&0xC00)||((ppu->v>>4)&0x38)|((ppu->v>>2)&0x07))>>(((ppu->v>>4)&4)|(ppu->v&2)))&3)<<2;
+            ppu->attribute_table_byte=((ppu->read(ppu->nes, 0x23C0|(ppu->v&0xC00)||((ppu->v>>4)&0x38)|((ppu->v>>2)&0x07))>>(((ppu->v>>4)&4)|(ppu->v&2)))&3)<<2;
             break;
           case 5: // fetch low tile byte
-            ppu->low_tile_byte=ppu->read(ppu->nes->reference, 0x1000*(ppu->ppuctrl&PPUCTRL_BACKGROUND_TABLE?1:0)+ppu->name_table_byte*16+((ppu->v>>12)&7));
+            ppu->low_tile_byte=ppu->read(ppu->nes, 0x1000*(ppu->ppuctrl&PPUCTRL_BACKGROUND_TABLE?1:0)+ppu->name_table_byte*16+((ppu->v>>12)&7));
             break;
           case 7: // fetch high tile byte
-            ppu->low_tile_byte=ppu->read(ppu->nes->reference, 0x1000*(ppu->ppuctrl&PPUCTRL_BACKGROUND_TABLE?1:0)+ppu->name_table_byte*16+((ppu->v>>12)&7)+8);
+            ppu->low_tile_byte=ppu->read(ppu->nes, 0x1000*(ppu->ppuctrl&PPUCTRL_BACKGROUND_TABLE?1:0)+ppu->name_table_byte*16+((ppu->v>>12)&7)+8);
             break;
           case 0: // store tile data
             for(int j=0; j<8; j++) {
@@ -230,14 +278,88 @@ int ppu_update(ppu_t *ppu) {
             break;
         }
       }
+      if (ppu->scanline==261 && ppu->cycle>=280 && ppu->cycle>=304) {
+        ppu->v=(ppu->v&0x841F)|(ppu->t&0x7BE0);
+      }
+      if (ppu->scanline==261 || ppu->scanline<240) {
+        if (((ppu->cycle>=321 && ppu->cycle<=336) || (ppu->cycle>=1 && ppu->cycle<=256)) && ppu->cycle%8==0) {
+          if (ppu->v&0x001F==31) {
+            ppu->v&=0xFFE0;
+            ppu->v^=0x400;
+          }
+          else {
+            ppu->v++;
+          }
+        }
+        if (ppu->cycle==256) {
+          if (ppu->v&0x7000!=0x7000) {
+            ppu->v+=0x1000;
+          }
+          else {
+            ppu->v&=0x8FFF;
+            int y=(ppu->v&0x3E0)>>5;
+            switch(y) {
+              case 29:
+                ppu->v^=0x0800;
+              case 31: // fallthrough from case 29
+                y=0;
+                break;
+              default:
+                y++;
+            }
+            ppu->v=(ppu->v&0xFC1F)|(y<<5);
+          }
+        }
+        else if (ppu->cycle==257) {
+          ppu->v=(ppu->v&0xFBE0)|(ppu->t&0x41F);
+        }
+      }
+      if (ppu->cycle==257) {
+        if (ppu->scanline<240) {
+          // evaluate sprite
+          int count=0;
+          for(int j=0; j<64; j++) {
+            int row=ppu->scanline-ppu->oam_data[j*4];
+            if (row<0||row>=(ppu->ppuctrl&PPUCTRL_SPRITE_SIZE?16:8)) {
+              continue;
+            }
+            if (count<8) {
+              ppu->sprite_patterns[count]=fetch_sprite_pattern(ppu, j, row);
+              ppu->sprite_positions[count]=ppu->oam_data[j*4+2];
+              ppu->sprite_priorities[count]=(ppu->oam_data[j*4+3]>>5)&0x01;
+              ppu->sprite_indicies[count]=j;
+            }
+            count++;
+          }
+          if (count>8) {
+            count=8;
+            ppu->ppustatus|=PPUSTATUS_SPRITE_OVERFLOW;
+          }
+          ppu->sprite_count=count;
+        }
+        else {
+          ppu->sprite_count=0;
+        }
+      }
+    }
+    if (ppu->scanline==241 && ppu->cycle==1) {
+      ppu->cycles_to_next_frame=89342;
+      ppu->ppustatus|=PPUSTATUS_VBLANK;
+      if (ppu->ppuctrl&PPUCTRL_NMI) {
+        cpu6502_trigger_interrupt(&ppu->nes->cpu, INTERRUPT_NMI);
+      }
+      ppu->update_frame(ppu->nes->reference, ppu->frame_data, 256, 240);
+    }
+    if (ppu->scanline==261 && ppu->cycle==1) {
+      ppu->ppustatus&=~(PPUSTATUS_VBLANK|PPUSTATUS_SPRITE_ZERO_HIT|PPUSTATUS_SPRITE_OVERFLOW);
     }
   }
 
-  ppu->last_cycle_number+=cycles;
+  ppu->last_cycle_number=ppu->nes->cpu.cycle_number;
   ppu->cycles_to_next_frame-=cycles;
   if (ppu->cycles_to_next_frame<0) {
     // TODO: should not happen
-    ppu->cycles_to_next_frame=0;
+    ppu->cycles_to_next_frame=89342;
   }
 
   return ppu->cycles_to_next_frame;

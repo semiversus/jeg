@@ -59,19 +59,46 @@ static void cpu6502_bus_write (void *ref, int address, int value) {
   }
 }
 
-static int ppu_bus_read (void *ref, int address) {
-  nes_t* nes=(nes_t *)ref;
+const int mirror_lookup[20]={0,0,1,1,0,1,0,1,0,0,0,0,1,1,1,1,0,1,2,3};
 
+int mirror_address (int mode, int address) {
+  address=address%0x1000;
+  return 0x2000+mirror_lookup[mode*4+(address/0x400)]*0x400+(address%0x400);
+}
+
+static int ppu_bus_read (nes_t *nes, int address) {
   address%=0x4000;
   if (address<0x2000) {
     return cartridge_read_chr(&nes->cartridge, address);
   }
   else if (address<0x3F00) {
-    //TODO
+    return nes->ppu.name_table[mirror_address(nes->cartridge.mirror, address)%2048];
   }
+  else if (address<0x4000) {
+    address=address%32;
+    if (address>=16 && address%4==0) {
+      address-=16;
+    }
+    return nes->ppu.palette[address];
+  }
+  return 0;
 }
 
-static void ppu_bus_write (void *nes, int address, int value) {
+static void ppu_bus_write (nes_t *nes, int address, int value) {
+  address%=0x4000;
+  if (address<0x2000) {
+    cartridge_write_chr(&nes->cartridge, address, value);
+  }
+  else if (address<0x3F00) {
+    nes->ppu.name_table[mirror_address(nes->cartridge.mirror, address)%2048]=value;
+  }
+  else if (address<0x4000) {
+    address=address%32;
+    if (address>=16 && address%4==0) {
+      address-=16;
+    }
+    nes->ppu.palette[address]=value;
+  }
 }
 
 void nes_init(nes_t *nes, void *reference, ppu_update_frame_func_t update_frame, controller_read_func_t controller_read) {
@@ -93,8 +120,7 @@ int nes_setup_cartridge(nes_t *nes, uint8_t *data, uint32_t size) {
 }
 
 void nes_iterate_frame(nes_t *nes) {
-  cpu6502_dump(&nes->cpu);
-  cpu6502_run(&nes->cpu, 0);
+  cpu6502_run(&nes->cpu, ppu_update(&nes->ppu)/3);
 }
 
 void nes_store_state(nes_t *nes, uint8_t *data); // stores state to given array

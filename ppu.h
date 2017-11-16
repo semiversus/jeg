@@ -3,18 +3,18 @@
 
 #include <stdint.h>
 
-typedef int (*ppu_read_func_t) (void *reference, int address); // read data [8bit] from address [16bit]
-typedef void (*ppu_write_func_t) (void *reference, int address, int value); // write data [8bit] to address [16bit]
-typedef void (*ppu_update_frame_func_t) (void *reference, uint8_t* frame_data, int width, int height);
-
 typedef struct nes_t nes_t;
+
+typedef int (*ppu_read_func_t) (nes_t *nes, int address); // read data [8bit] from address [16bit]
+typedef void (*ppu_write_func_t) (nes_t *nes, int address, int value); // write data [8bit] to address [16bit]
+typedef void (*ppu_update_frame_func_t) (void *reference, uint8_t* frame_data, int width, int height);
 
 typedef struct ppu_t {
   nes_t *nes; // reference to nes console
 
   // ppu state
   uint64_t last_cycle_number;
-  uint32_t cycles_to_next_frame;
+  int cycles_to_next_frame;
   int cycle;
   int scanline;
 
