@@ -13,8 +13,7 @@ typedef struct ppu_t {
   nes_t *nes; // reference to nes console
 
   // ppu state
-  uint64_t last_cycle_number;
-  int cycles_to_next_frame;
+  uint64_t last_cycle_number; // measured in cpu cycles
   int cycle;
   int scanline;
 
