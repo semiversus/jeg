@@ -115,12 +115,13 @@ void nes_reset(nes_t *nes) {
 }
 
 int nes_setup_cartridge(nes_t *nes, uint8_t *data, uint32_t size) {
-  cartridge_setup(&nes->cartridge, data, size);
+  int result;
+  result=cartridge_setup(&nes->cartridge, data, size);
   nes_reset(nes);
+  return result;
 }
 
 void nes_iterate_frame(nes_t *nes) {
-  cpu6502_run(&nes->cpu, ppu_update(&nes->ppu)/3);
 }
 
 void nes_store_state(nes_t *nes, uint8_t *data); // stores state to given array

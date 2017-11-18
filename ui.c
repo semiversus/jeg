@@ -142,6 +142,8 @@ int main(int argc, char* argv[]) {
             case SDLK_a: // controller A
               key_value=0x01;
               break;
+            default:
+              break;
           }
 
           if (event.type==SDL_KEYDOWN) {
@@ -152,12 +154,16 @@ int main(int argc, char* argv[]) {
               case SDLK_n:
                 nes_iterate_frame(&nes_console);
                 break;
+              default:
+                break;
             }
             controller_data|=key_value;
           }
           else {
             controller_data&=~key_value;
           }
+          break;
+        default:
           break;
       }
     }

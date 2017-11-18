@@ -52,6 +52,9 @@ void cpu6502_dump(cpu6502_t *cpu) {
     case ADR_ZERO_PAGE_Y:
       printf("$%02X,Y ; which is #$%02X", cpu->read(cpu->reference, cpu->reg_PC+1), cpu->read(cpu->reference, (cpu->read(cpu->reference, cpu->reg_PC+1)+cpu->reg_Y)&0xFF));
       break;
+    case ADR_IMPLIED:
+      // nothing to print hear
+      break;
   }
   printf("\n");
 }

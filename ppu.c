@@ -48,9 +48,9 @@ void ppu_reset(ppu_t *ppu) {
 int ppu_read(ppu_t *ppu, int adr, uint64_t cycle_number) {
   int value, buffered;
 
+  ppu_update(ppu);
   switch (adr) {
     case 0x2002:
-      ppu_update(ppu);
       value=(ppu->register_data&0x1F)|(ppu->ppustatus&(PPUSTATUS_VBLANK|PPUSTATUS_SPRITE_ZERO_HIT|PPUSTATUS_SPRITE_OVERFLOW));
       ppu->ppustatus&=~PPUSTATUS_VBLANK; // disable vblank flag
       ppu->w=0;
@@ -77,8 +77,8 @@ int ppu_read(ppu_t *ppu, int adr, uint64_t cycle_number) {
 
 void ppu_write(ppu_t *ppu, int adr, int value, uint64_t cycle_number) {
   int address_temp;
-  printf("%04X %d (%ld)\n", adr, value, cycle_number);
 
+  ppu_update(ppu);
   ppu->register_data=value;
 
   switch (adr) {
@@ -126,7 +126,8 @@ void ppu_write(ppu_t *ppu, int adr, int value, uint64_t cycle_number) {
     case 0x4014:
       address_temp=value<<8;
       for(int i=0; i<256; i++) {
-        ppu->oam_data[ppu->oam_address]=ppu->nes->cpu.read(ppu->nes, address_temp);
+        int v=ppu->nes->cpu.read(ppu->nes, address_temp);
+        ppu->oam_data[ppu->oam_address]=v;
         ppu->oam_address++;
         address_temp++;
       }
@@ -143,14 +144,14 @@ uint32_t fetch_sprite_pattern(ppu_t *ppu, int i, int row) {
   int attributes=ppu->oam_data[i*4+2];
   uint16_t address;
 
-  if (ppu->ppuctrl&PPUCTRL_SPRITE_SIZE==0) {
-    if (attributes&0x80==0x80) {
+  if ((ppu->ppuctrl&PPUCTRL_SPRITE_SIZE)==0) {
+    if ((attributes&0x80)==0x80) {
       row=7-row;
     }
     address=0x1000*(ppu->ppuctrl&PPUCTRL_SPRITE_TABLE?1:0)+tile*16+row;
   }
   else {
-    if (attributes&0x80==0x80) {
+    if ((attributes&0x80)==0x80) {
       row=15-row;
     }
     tile&=0xFE;
@@ -165,7 +166,7 @@ uint32_t fetch_sprite_pattern(ppu_t *ppu, int i, int row) {
   uint32_t data;
   for (int j=0; j<8; j++) {
     int p1, p2;
-    if (attributes&0x40==0x40) {
+    if ((attributes&0x40)==0x40) {
       p1=(low_tile_byte&0x01);
       p2=(high_tile_byte&0x01)<<1;
       low_tile_byte>>=1;
@@ -184,178 +185,251 @@ uint32_t fetch_sprite_pattern(ppu_t *ppu, int i, int row) {
 }
 
 int ppu_update(ppu_t *ppu) {
-  int cycles; // cycles to run measured in ppu cycles
-
-  while (ppu->last_cycle_number<ppu->nes->cpu.cycle_number) {
-    for(int k=0; k<3; k++) {
-      // tick
-      // TODO: every second frame is shorter
-      ppu->cycle++;
-      if (ppu->cycle>340) {
-        ppu->cycle=0;
-        ppu->scanline++;
-        if (ppu->scanline>261) {
-          ppu->scanline=0;
-          ppu->f^=1;
-        }
-      }
-
-      // render
-      if (ppu->ppumask&(PPUMASK_SHOW_BACKGROUND|PPUMASK_SHOW_SPRITES)) {
-        if (ppu->scanline<240 && ppu->cycle>=1 && ppu->cycle<256) {
-          // render pixel
-          int background=0, i=0, sprite=0;
-          if (ppu->ppumask&PPUMASK_SHOW_BACKGROUND!=0) {
-            background=((ppu->tile_data>>32)>>((7-ppu->x)*4))&0x0F;
-          }
-          for(int j=0; j<ppu->sprite_count; j++) {
-            int offset=(ppu->cycle-1)-ppu->sprite_positions[j];
-            if (offset<0 || offset>7) {
-              continue;
-            }
-            int color=ppu->sprite_patterns[j]>>(((7-offset)*4)&0x0F);
-            if (color%4==0) {
-              continue;
-            }
-            i=j;
-            break;
-          }
-          if (ppu->cycle<9) {
-            if (ppu->ppumask&PPUMASK_SHOW_LEFT_BACKGROUND) {
-              background=0;
-            }
-            if (ppu->ppumask&PPUMASK_SHOW_LEFT_SPRITES) {
-              sprite=0;
-            }
-          }
-          int b=(background%4!=0), s=(sprite%4!=0), color=0;
-          if (!b && s) {
-            color=sprite|0x10;
-          }
-          else if (b && !s) {
-            color=background;
-          }
-          else if (b && s) {
-            if (ppu->sprite_indicies[i]==0 && ppu->cycle-1<255) {
-              ppu->ppustatus|=PPUSTATUS_SPRITE_ZERO_HIT;
-            }
-            if (ppu->sprite_priorities[i]==0) {
-              color=sprite|0x10;
-            }
-            else {
-              color=background;
-            }
-          }
-          if (color>=16 && color%4==0) {
-            color-=16;
-          }
-          ppu->frame_data[ppu->scanline*256+ppu->cycle-1]=ppu->palette[color];
-        }
-
-        if ( (ppu->scanline==261 || ppu->scanline<240) && ((ppu->cycle>=321 && ppu->cycle<=336) || (ppu->cycle>=1 && ppu->cycle<=256) ) ) {
-          ppu->tile_data>>=4;
-          switch (ppu->cycle%8) {
-            uint32_t data;
-            case 1: // fetch name table byte
-              ppu->name_table_byte=ppu->read(ppu->nes, 0x2000|(ppu->v&0x00FF));
-              break;
-            case 3: // fetch attribute table byte
-              ppu->attribute_table_byte=((ppu->read(ppu->nes, 0x23C0|(ppu->v&0xC00)||((ppu->v>>4)&0x38)|((ppu->v>>2)&0x07))>>(((ppu->v>>4)&4)|(ppu->v&2)))&3)<<2;
-              break;
-            case 5: // fetch low tile byte
-              ppu->low_tile_byte=ppu->read(ppu->nes, 0x1000*(ppu->ppuctrl&PPUCTRL_BACKGROUND_TABLE?1:0)+ppu->name_table_byte*16+((ppu->v>>12)&7));
-              break;
-            case 7: // fetch high tile byte
-              ppu->low_tile_byte=ppu->read(ppu->nes, 0x1000*(ppu->ppuctrl&PPUCTRL_BACKGROUND_TABLE?1:0)+ppu->name_table_byte*16+((ppu->v>>12)&7)+8);
-              break;
-            case 0: // store tile data
-              for(int j=0; j<8; j++) {
-                ppu->low_tile_byte<<=1;
-                ppu->high_tile_byte<<=1;
-                data<<=4;
-                data|=ppu->attribute_table_byte|((ppu->low_tile_byte&0x80)>>7)|((ppu->high_tile_byte&0x80)>>6);
-              }
-              ppu->tile_data|=data;
-              break;
-          }
-        }
-        if (ppu->scanline==261 && ppu->cycle>=280 && ppu->cycle>=304) {
-          ppu->v=(ppu->v&0x841F)|(ppu->t&0x7BE0);
-        }
-        if (ppu->scanline==261 || ppu->scanline<240) {
-          if (((ppu->cycle>=321 && ppu->cycle<=336) || (ppu->cycle>=1 && ppu->cycle<=256)) && ppu->cycle%8==0) {
-            if (ppu->v&0x001F==31) {
-              ppu->v&=0xFFE0;
-              ppu->v^=0x400;
-            }
-            else {
-              ppu->v++;
-            }
-          }
-          if (ppu->cycle==256) {
-            if (ppu->v&0x7000!=0x7000) {
-              ppu->v+=0x1000;
-            }
-            else {
-              ppu->v&=0x8FFF;
-              int y=(ppu->v&0x3E0)>>5;
-              switch(y) {
-                case 29:
-                  ppu->v^=0x0800;
-                case 31: // fallthrough from case 29
-                  y=0;
-                  break;
-                default:
-                  y++;
-              }
-              ppu->v=(ppu->v&0xFC1F)|(y<<5);
-            }
-          }
-          else if (ppu->cycle==257) {
-            ppu->v=(ppu->v&0xFBE0)|(ppu->t&0x41F);
-          }
-        }
-        if (ppu->cycle==257) {
-          if (ppu->scanline<240) {
-            // evaluate sprite
-            int count=0;
-            for(int j=0; j<64; j++) {
-              int row=ppu->scanline-ppu->oam_data[j*4];
-              if (row<0||row>=(ppu->ppuctrl&PPUCTRL_SPRITE_SIZE?16:8)) {
-                continue;
-              }
-              if (count<8) {
-                ppu->sprite_patterns[count]=fetch_sprite_pattern(ppu, j, row);
-                ppu->sprite_positions[count]=ppu->oam_data[j*4+2];
-                ppu->sprite_priorities[count]=(ppu->oam_data[j*4+3]>>5)&0x01;
-                ppu->sprite_indicies[count]=j;
-              }
-              count++;
-            }
-            if (count>8) {
-              count=8;
-              ppu->ppustatus|=PPUSTATUS_SPRITE_OVERFLOW;
-            }
-            ppu->sprite_count=count;
-          }
-          else {
-            ppu->sprite_count=0;
-          }
-        }
-      }
-      if (ppu->scanline==241 && ppu->cycle==1) {
-        ppu->ppustatus|=PPUSTATUS_VBLANK;
-        if (ppu->ppuctrl&PPUCTRL_NMI) {
-          cpu6502_trigger_interrupt(&ppu->nes->cpu, INTERRUPT_NMI);
-        }
-        ppu->update_frame(ppu->nes->reference, ppu->frame_data, 256, 240);
-      }
-      if (ppu->scanline==261 && ppu->cycle==1) {
-        ppu->ppustatus&=~(PPUSTATUS_VBLANK|PPUSTATUS_SPRITE_ZERO_HIT|PPUSTATUS_SPRITE_OVERFLOW);
+  for (int k=0; k<(ppu->nes->cpu.cycle_number-ppu->last_cycle_number)*3; k++) {
+    // tick
+    // TODO: every second frame is shorter
+    ppu->cycle++;
+    if (ppu->cycle>340) {
+      ppu->cycle=0;
+      ppu->scanline++;
+      if (ppu->scanline>261) {
+        ppu->scanline=0;
+        ppu->f^=1;
       }
     }
-    ppu->last_cycle_number+=3;
-  }
 
-  return 29790-(((ppu->scanline+20)%261)*340+ppu->cycle)/3;
+    // render
+    if (ppu->ppumask&(PPUMASK_SHOW_BACKGROUND|PPUMASK_SHOW_SPRITES)) {
+      if (ppu->scanline<240 && ppu->cycle>=1 && ppu->cycle<256) {
+        // render pixel
+        int background=0, i=0, sprite=0;
+        if ((ppu->ppumask&PPUMASK_SHOW_BACKGROUND)!=0) {
+          background=((ppu->tile_data>>32)>>((7-ppu->x)*4))&0x0F;
+        }
+        for(int j=0; j<ppu->sprite_count; j++) {
+          int offset=(ppu->cycle-1)-ppu->sprite_positions[j];
+          if (offset<0 || offset>7) {
+            continue;
+          }
+          int color=(ppu->sprite_patterns[j]>>((7-offset)*4))&0x0F;
+          if (color%4==0) {
+            continue;
+          }
+          i=j;
+          sprite=color;
+          break;
+        }
+        if (ppu->cycle<9) {
+          if (ppu->ppumask&PPUMASK_SHOW_LEFT_BACKGROUND) {
+            background=0;
+          }
+          if (ppu->ppumask&PPUMASK_SHOW_LEFT_SPRITES) {
+            sprite=0;
+          }
+        }
+        int b=(background%4!=0), s=(sprite%4!=0), color=0;
+        if (!b && s) {
+          color=sprite|0x10;
+        }
+        else if (b && !s) {
+          color=background;
+        }
+        else if (b && s) {
+          if (ppu->sprite_indicies[i]==0 && ppu->cycle-1<255) {
+            printf("ZERO HIT!\n");
+            ppu->ppustatus|=PPUSTATUS_SPRITE_ZERO_HIT;
+          }
+          if (ppu->sprite_priorities[i]==0) {
+            color=sprite|0x10;
+          }
+          else {
+            color=background;
+          }
+        }
+        if (color>=16 && color%4==0) {
+          color-=16;
+        }
+        ppu->frame_data[ppu->scanline*256+ppu->cycle-1]=ppu->palette[color];
+      }
+
+      if ( (ppu->scanline==261 || ppu->scanline<240) && ((ppu->cycle>=321 && ppu->cycle<=336) || (ppu->cycle>=1 && ppu->cycle<=256) ) ) {
+        ppu->tile_data>>=4;
+        switch (ppu->cycle%8) {
+          uint32_t data;
+          case 1: // fetch name table byte
+            ppu->name_table_byte=ppu->read(ppu->nes, 0x2000|(ppu->v&0x00FF));
+            break;
+          case 3: // fetch attribute table byte
+            ppu->attribute_table_byte=((ppu->read(ppu->nes, 0x23C0|(ppu->v&0xC00)||((ppu->v>>4)&0x38)|((ppu->v>>2)&0x07))>>(((ppu->v>>4)&4)|(ppu->v&2)))&3)<<2;
+            break;
+          case 5: // fetch low tile byte
+            ppu->low_tile_byte=ppu->read(ppu->nes, 0x1000*(ppu->ppuctrl&PPUCTRL_BACKGROUND_TABLE?1:0)+ppu->name_table_byte*16+((ppu->v>>12)&7));
+            break;
+          case 7: // fetch high tile byte
+            ppu->low_tile_byte=ppu->read(ppu->nes, 0x1000*(ppu->ppuctrl&PPUCTRL_BACKGROUND_TABLE?1:0)+ppu->name_table_byte*16+((ppu->v>>12)&7)+8);
+            break;
+          case 0: // store tile data
+            for(int j=0; j<8; j++) {
+              ppu->low_tile_byte<<=1;
+              ppu->high_tile_byte<<=1;
+              data<<=4;
+              if((ppu->attribute_table_byte|((ppu->low_tile_byte&0x80)>>7)|((ppu->high_tile_byte&0x80)>>6))>15) {
+              }
+              data|=ppu->attribute_table_byte|((ppu->low_tile_byte&0x80)>>7)|((ppu->high_tile_byte&0x80)>>6);
+            }
+            ppu->tile_data|=data;
+            break;
+        }
+      }
+      if (ppu->scanline==261 && ppu->cycle>=280 && ppu->cycle>=304) {
+        ppu->v=(ppu->v&0x841F)|(ppu->t&0x7BE0);
+      }
+      if (ppu->scanline==261 || ppu->scanline<240) {
+        if (((ppu->cycle>=321 && ppu->cycle<=336) || (ppu->cycle>=1 && ppu->cycle<=256)) && ppu->cycle%8==0) {
+          if ((ppu->v&0x001F)==31) {
+            ppu->v&=0xFFE0;
+            ppu->v^=0x400;
+          }
+          else {
+            ppu->v++;
+          }
+        }
+        if (ppu->cycle==256) {
+          if ((ppu->v&0x7000)!=0x7000) {
+            ppu->v+=0x1000;
+          }
+          else {
+            ppu->v&=0x8FFF;
+            int y=(ppu->v&0x3E0)>>5;
+            switch(y) {
+              case 29:
+                ppu->v^=0x0800;
+              case 31: // fallthrough from case 29
+                y=0;
+                break;
+              default:
+                y++;
+            }
+            ppu->v=(ppu->v&0xFC1F)|(y<<5);
+          }
+        }
+        else if (ppu->cycle==257) {
+          ppu->v=(ppu->v&0xFBE0)|(ppu->t&0x41F);
+        }
+      }
+      if (ppu->cycle==257) {
+        if (ppu->scanline<240) {
+          // evaluate sprite
+          int count=0;
+          for(int j=0; j<64; j++) {
+            int row=ppu->scanline-ppu->oam_data[j*4];
+            if (row<0||row>=(ppu->ppuctrl&PPUCTRL_SPRITE_SIZE?16:8)) {
+              continue;
+            }
+            if (count<8) {
+              ppu->sprite_patterns[count]=fetch_sprite_pattern(ppu, j, row);
+              ppu->sprite_positions[count]=ppu->oam_data[j*4+2];
+              ppu->sprite_priorities[count]=(ppu->oam_data[j*4+3]>>5)&0x01;
+              ppu->sprite_indicies[count]=j;
+            }
+            count++;
+          }
+          if (count>8) {
+            count=8;
+            ppu->ppustatus|=PPUSTATUS_SPRITE_OVERFLOW;
+          }
+          ppu->sprite_count=count;
+        }
+        else {
+          ppu->sprite_count=0;
+        }
+      }
+    }
+    if (ppu->scanline==241 && ppu->cycle==1) {
+      ppu->ppustatus|=PPUSTATUS_VBLANK;
+      if (ppu->ppuctrl&PPUCTRL_NMI) {
+        cpu6502_trigger_interrupt(&ppu->nes->cpu, INTERRUPT_NMI);
+      }
+      ppu->update_frame(ppu->nes->reference, ppu->frame_data, 256, 240);
+    }
+    if (ppu->scanline==261 && ppu->cycle==1) {
+      ppu->ppustatus&=~(PPUSTATUS_VBLANK|PPUSTATUS_SPRITE_ZERO_HIT|PPUSTATUS_SPRITE_OVERFLOW);
+    }
+    if (ppu->scanline==261 && ppu->cycle>=280 && ppu->cycle>=304) {
+      ppu->v=(ppu->v&0x841F)|(ppu->t&0x7BE0);
+    }
+    if (ppu->scanline==261 || ppu->scanline<240) {
+      if (((ppu->cycle>=321 && ppu->cycle<=336) || (ppu->cycle>=1 && ppu->cycle<=256)) && ppu->cycle%8==0) {
+        if ((ppu->v&0x001F)==31) {
+          ppu->v&=0xFFE0;
+          ppu->v^=0x400;
+        }
+        else {
+          ppu->v++;
+        }
+      }
+      if (ppu->cycle==256) {
+        if ((ppu->v&0x7000)!=0x7000) {
+          ppu->v+=0x1000;
+        }
+        else {
+          ppu->v&=0x8FFF;
+          int y=(ppu->v&0x3E0)>>5;
+          switch(y) {
+            case 29:
+              ppu->v^=0x0800;
+            case 31: // fallthrough from case 29
+              y=0;
+              break;
+            default:
+              y++;
+          }
+          ppu->v=(ppu->v&0xFC1F)|(y<<5);
+        }
+      }
+      else if (ppu->cycle==257) {
+        ppu->v=(ppu->v&0xFBE0)|(ppu->t&0x41F);
+      }
+    }
+    if (ppu->cycle==257) {
+      if (ppu->scanline<240) {
+        // evaluate sprite
+        int count=0;
+        for(int j=0; j<64; j++) {
+          int row=ppu->scanline-ppu->oam_data[j*4];
+          if (row<0||row>=(ppu->ppuctrl&PPUCTRL_SPRITE_SIZE?16:8)) {
+            continue;
+          }
+          if (count<8) {
+            ppu->sprite_patterns[count]=fetch_sprite_pattern(ppu, j, row);
+            ppu->sprite_positions[count]=ppu->oam_data[j*4+2];
+            ppu->sprite_priorities[count]=(ppu->oam_data[j*4+3]>>5)&0x01;
+            ppu->sprite_indicies[count]=j;
+          }
+          count++;
+        }
+        if (count>8) {
+          count=8;
+          ppu->ppustatus|=PPUSTATUS_SPRITE_OVERFLOW;
+        }
+        ppu->sprite_count=count;
+      }
+      else {
+        ppu->sprite_count=0;
+      }
+    }
+    if (ppu->scanline==241 && ppu->cycle==1) {
+      ppu->ppustatus|=PPUSTATUS_VBLANK;
+      if (ppu->ppuctrl&PPUCTRL_NMI) {
+        cpu6502_trigger_interrupt(&ppu->nes->cpu, INTERRUPT_NMI);
+      }
+      ppu->update_frame(ppu->nes->reference, ppu->frame_data, 256, 240);
+    }
+    if (ppu->scanline==261 && ppu->cycle==1) {
+      ppu->ppustatus&=~(PPUSTATUS_VBLANK|PPUSTATUS_SPRITE_ZERO_HIT|PPUSTATUS_SPRITE_OVERFLOW);
+    }
+  }
+  ppu->last_cycle_number=ppu->nes->cpu.cycle_number;
+
+  return 30000;
 }
