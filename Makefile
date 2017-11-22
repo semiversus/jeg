@@ -7,7 +7,7 @@ SRCS_UI=$(SRCS_NES) ui.c
 all: jeg test_klaus2m5
 
 jeg: $(SRCS_UI)
-	$(CC) $(SRCS_UI) -I. -O0 -o $@ `sdl-config --cflags --libs` -ggdb -Wall -pedantic
+	$(CC) $(SRCS_UI) -I. -O3 -o $@ `sdl-config --cflags --libs` -Wall -pedantic
 
 test_klaus2m5: $(SRCS_CPU6502)
 	cat test/klaus2m5/6502_functional_test.bin|xxd -i >test/klaus2m5/rom.inc

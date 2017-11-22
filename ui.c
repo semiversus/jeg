@@ -50,6 +50,13 @@ uint16_t controller_read(void *reference) {
   return controller_data;
 }
 
+uint32_t next_frame(uint32_t interval, void *p) {
+	SDL_Event event;
+	event.type = SDL_USEREVENT;
+	SDL_PushEvent(&event);
+  return 20;
+}
+
 int main(int argc, char* argv[]) {
   nes_t nes_console;
   SDL_Event event;
@@ -81,7 +88,7 @@ int main(int argc, char* argv[]) {
   fclose(rom_file);
 
   // init SDL
-  if (SDL_Init(SDL_INIT_VIDEO) < 0 ) {
+  if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER) < 0 ) {
     printf("unable to init sdl video\n");
     return 4;
   }
@@ -106,66 +113,65 @@ int main(int argc, char* argv[]) {
   int quit = 0;
   uint16_t key_value;
   
-  nes_iterate_frame(&nes_console);
+  SDL_AddTimer(20, next_frame, 0);
 
   while(!quit) {
-    while(SDL_PollEvent(&event)) {
-      switch (event.type) {
-        case SDL_QUIT:
-          quit=1;
-          break;
-        case SDL_KEYDOWN:
-        case SDL_KEYUP:
-          key_value=0;
+    SDL_WaitEvent(&event);
+    switch (event.type) {
+      case SDL_USEREVENT:
+        nes_iterate_frame(&nes_console);
+        break;
+      case SDL_QUIT:
+        quit=1;
+        break;
+      case SDL_KEYDOWN:
+      case SDL_KEYUP:
+        key_value=0;
+        switch (event.key.keysym.sym) {
+          case SDLK_RIGHT: // controller Right
+            key_value=0x80;
+            break;
+          case SDLK_LEFT: // controller Left
+            key_value=0x40;
+            break;
+          case SDLK_DOWN: // controller Down
+            key_value=0x20;
+            break;
+          case SDLK_UP: // controller Up
+            key_value=0x10;
+            break;
+          case SDLK_q: // controller Start
+            key_value=0x08;
+            break;
+          case SDLK_w: // controller Select
+            key_value=0x04;
+            break;
+          case SDLK_s: // controller B
+            key_value=0x02;
+            break;
+          case SDLK_a: // controller A
+            key_value=0x01;
+            break;
+          default:
+            break;
+        }
+
+        if (event.type==SDL_KEYDOWN) {
           switch (event.key.keysym.sym) {
-            case SDLK_RIGHT: // controller Right
-              key_value=0x80;
-              break;
-            case SDLK_LEFT: // controller Left
-              key_value=0x40;
-              break;
-            case SDLK_DOWN: // controller Down
-              key_value=0x20;
-              break;
-            case SDLK_UP: // controller Up
-              key_value=0x10;
-              break;
-            case SDLK_q: // controller Start
-              key_value=0x08;
-              break;
-            case SDLK_w: // controller Select
-              key_value=0x04;
-              break;
-            case SDLK_s: // controller B
-              key_value=0x02;
-              break;
-            case SDLK_a: // controller A
-              key_value=0x01;
+            case SDLK_ESCAPE: 
+              quit=1;
               break;
             default:
               break;
           }
-
-          if (event.type==SDL_KEYDOWN) {
-            switch (event.key.keysym.sym) {
-              case SDLK_ESCAPE: 
-                quit=1;
-                break;
-              case SDLK_n:
-                nes_iterate_frame(&nes_console);
-                break;
-              default:
-                break;
-            }
-            controller_data|=key_value;
-          }
-          else {
-            controller_data&=~key_value;
-          }
-          break;
-        default:
-          break;
-      }
+          controller_data|=key_value;
+        }
+        else {
+          controller_data&=~key_value;
+        }
+        break;
+      default:
+        break;
     }
   }
 
