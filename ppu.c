@@ -45,7 +45,7 @@ void ppu_reset(ppu_t *ppu) {
   }
 }
 
-int ppu_read(ppu_t *ppu, int adr, uint64_t cycle_number) {
+int ppu_read(ppu_t *ppu, int adr) {
   int value, buffered;
 
   switch (adr) {
@@ -77,7 +77,7 @@ int ppu_read(ppu_t *ppu, int adr, uint64_t cycle_number) {
   return value;
 }
 
-void ppu_write(ppu_t *ppu, int adr, int value, uint64_t cycle_number) {
+void ppu_write(ppu_t *ppu, int adr, int value) {
   int address_temp;
 
   ppu->register_data=value;
@@ -143,7 +143,7 @@ void ppu_write(ppu_t *ppu, int adr, int value, uint64_t cycle_number) {
   }
 }
 
-uint32_t fetch_sprite_pattern(ppu_t *ppu, int i, int row) {
+inline uint32_t fetch_sprite_pattern(ppu_t *ppu, int i, int row) {
   int tile=ppu->oam_data[i*4+1];
   int attributes=ppu->oam_data[i*4+2];
   uint16_t address;

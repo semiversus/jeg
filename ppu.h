@@ -64,8 +64,8 @@ void ppu_init(ppu_t *ppu, nes_t *nes, ppu_read_func_t read, ppu_write_func_t wri
 
 void ppu_reset(ppu_t *ppu);
 
-int ppu_read(ppu_t *ppu, int adr, uint64_t cycle_number); // read data [8bit] from address [16bit]
-void ppu_write(ppu_t *ppu, int adr, int value, uint64_t cycle_number); // write data [8bit] to address [16bit]
+int ppu_read(ppu_t *ppu, int adr); // read data [8bit] from address [16bit]
+void ppu_write(ppu_t *ppu, int adr, int value); // write data [8bit] to address [16bit]
 
 int ppu_update(ppu_t *ppu); // update ppu to current cpu cycle, return number of cpu cycles to next frame
 

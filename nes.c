@@ -10,10 +10,10 @@ static int cpu6502_bus_read (void *ref, int address) {
     return nes->ram_data[address%0x800];
   }
   else if (address<0x4000) {
-    return ppu_read(&nes->ppu, 0x2000+address%8, nes->cpu.cycle_number);
+    return ppu_read(&nes->ppu, 0x2000+address%8);
   }
   else if (address==0x4014) {
-    return ppu_read(&nes->ppu, address, nes->cpu.cycle_number);
+    return ppu_read(&nes->ppu, address);
   }
   else if (address==0x4016) {
     value=nes->controller_data[0]&1;
@@ -41,10 +41,10 @@ static void cpu6502_bus_write (void *ref, int address, int value) {
     nes->ram_data[address%0x800]=value;
   }
   else if (address<0x4000) {
-    ppu_write(&nes->ppu, 0x2000+address%8, value, nes->cpu.cycle_number);
+    ppu_write(&nes->ppu, 0x2000+address%8, value);
   }
   else if (address==0x4014) {
-    ppu_write(&nes->ppu, address, value, nes->cpu.cycle_number);
+    ppu_write(&nes->ppu, address, value);
   }
   else if (address==0x4016 && value&0x01) {
     value=nes->controller_read(nes);
