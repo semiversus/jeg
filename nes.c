@@ -118,7 +118,9 @@ void nes_reset(nes_t *nes) {
 int nes_setup_cartridge(nes_t *nes, uint8_t *data, uint32_t size) {
   int result;
   result=cartridge_setup(&nes->cartridge, data, size);
-  nes_reset(nes);
+  if (result==0) {
+    nes_reset(nes);
+  }
   return result;
 }
 

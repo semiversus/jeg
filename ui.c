@@ -58,6 +58,7 @@ uint32_t next_frame(uint32_t interval, void *p) {
 }
 
 int main(int argc, char* argv[]) {
+  int result;
   nes_t nes_console;
   SDL_Event event;
   FILE *rom_file;
@@ -105,8 +106,9 @@ int main(int argc, char* argv[]) {
 
   // init nes
   nes_init(&nes_console, 0, update_frame, controller_read);
-  if (nes_setup_cartridge(&nes_console, rom_data, rom_size)!=0) {
-    printf("unable to parse rom file\n");
+  result=nes_setup_cartridge(&nes_console, rom_data, rom_size);
+  if (result) {
+    printf("unable to parse rom file (result:%d)\n", result);
     return 6;
   }
   
