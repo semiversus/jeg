@@ -30,7 +30,7 @@ int cartridge_setup(cartridge_t *cartridge, uint8_t *data, uint32_t size) {
 
 // access cpu memory bus
 int cartridge_read_prg(cartridge_t *cartridge, int adr) {
-  return cartridge->prg_memory[adr-0x8000];
+  return cartridge->prg_memory[(adr-0x8000)%cartridge->prg_size];
 }
 
 void cartridge_write_prg(cartridge_t *cartridge, int adr, int value) {
