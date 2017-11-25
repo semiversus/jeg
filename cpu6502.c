@@ -105,11 +105,17 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         break;
       case ADR_ABSOLUTE_X:
         address=READ16(cpu->reg_PC+1)+cpu->reg_X;
-        cycles_passed+=PAGE_DIFFERS(address-cpu->reg_X, address)?opcode.page_cross_cycles:0;
+        if (PAGE_DIFFERS(address-cpu->reg_X, address)) {
+          cycles_passed+=opcode.page_cross_cycles;
+          cpu->read(cpu->reference, address-0x100); // dummy read
+        }
         break;
       case ADR_ABSOLUTE_Y:
         address=READ16(cpu->reg_PC+1)+cpu->reg_Y;
-        cycles_passed+=PAGE_DIFFERS(address-cpu->reg_Y, address)?opcode.page_cross_cycles:0;
+        if (PAGE_DIFFERS(address-cpu->reg_Y, address)) {
+          cycles_passed+=opcode.page_cross_cycles;
+          cpu->read(cpu->reference, address-0x100); // dummy read
+        }
         break;
       case ADR_ACCUMULATOR:
         address=0;
@@ -128,7 +134,10 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         break;
       case ADR_INDIRECT_INDEXED:
         address=READ16BUG(cpu->read(cpu->reference, cpu->reg_PC+1))+cpu->reg_Y;
-        cycles_passed+=PAGE_DIFFERS(address-cpu->reg_Y, address)?opcode.page_cross_cycles:0;
+        if (PAGE_DIFFERS(address-cpu->reg_Y, address)) {
+          cycles_passed+=opcode.page_cross_cycles;
+          cpu->read(cpu->reference, address-0x100); // dummy read
+        }
         break;
       case ADR_RELATIVE:
         address=cpu->read(cpu->reference, cpu->reg_PC+1);
@@ -159,6 +168,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
       case OP_ADC:
         temp_value2=cpu->read(cpu->reference, address);
         temp_value=cpu->reg_A+temp_value2+cpu->status_C;
+        #ifndef WITHOUT_DECIMAL_MODE
         if (cpu->status_D) { // bcd mode
           if (( (cpu->reg_A&0x0F)+(temp_value2&0x0F)+cpu->status_C)>9) {
             temp_value+=6;
@@ -170,9 +180,12 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
           cpu->status_C=temp_value>0x99?1:0;
         }
         else {
+        #endif  
           cpu->status_C=temp_value>0xFF?1:0;
           cpu->status_V=(~(cpu->reg_A^temp_value2))&(cpu->reg_A^temp_value)&0x80?1:0;
+        #ifndef WITHOUT_DECIMAL_MODE
         }
+        #endif  
         cpu->reg_A=temp_value&0xFF;
         RECALC_ZN(cpu->reg_A);
         break;
@@ -409,6 +422,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         temp_value=(cpu->reg_A-temp_value2-(1-cpu->status_C))&0xFFFF;
         RECALC_ZN(temp_value&0xFF);
         cpu->status_V=(cpu->reg_A^temp_value2)&(cpu->reg_A^temp_value)&0x80?1:0;
+        #ifndef WITHOUT_DECIMAL_MODE
         if (cpu->status_D) { // bcd mode
           if ( ((cpu->reg_A&0x0F)-(1-cpu->status_C))<(temp_value2&0x0F)) {
             temp_value-=6;
@@ -419,8 +433,11 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
           cpu->status_C=temp_value<0x100?1:0;
         }
         else {
+        #endif
           cpu->status_C=temp_value<0x100?1:0;
+        #ifndef WITHOUT_DECIMAL_MODE
         }
+        #endif
         cpu->reg_A=temp_value&0xFF;
         break;
       case OP_SEC:
