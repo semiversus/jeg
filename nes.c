@@ -129,17 +129,7 @@ void nes_reset(nes_t *nes) {
 }
 
 void nes_iterate_frame(nes_t *nes) {
-  int cycles;
-  static int old_vblank=1;
-  
-  do{
-    cycles=cpu6502_run(&nes->cpu, 0);
-    old_vblank=nes->ppu.ppustatus&0x80;
-    for (int i=0; i<cycles*3; i++) {
-      ppu_update(&nes->ppu);
-    }
-  }
-  while(!(!old_vblank && (nes->ppu.ppustatus&0x80))); 
+  cpu6502_run(&nes->cpu, ppu_update(&nes->ppu));
 }
 
 void nes_set_controller(nes_t *nes, uint8_t controller1, uint8_t controller2) {
