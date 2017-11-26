@@ -56,11 +56,11 @@ typedef struct ppu_t {
   ppu_write_func_t write;
 
   // frame data interface
-  uint8_t frame_data[256*240];
-  ppu_update_frame_func_t update_frame;
+  uint8_t *video_frame_data;
 } ppu_t;
 
-void ppu_init(ppu_t *ppu, nes_t *nes, ppu_read_func_t read, ppu_write_func_t write, ppu_update_frame_func_t update_frame);
+void ppu_init(ppu_t *ppu, nes_t *nes, ppu_read_func_t read, ppu_write_func_t write);
+void ppu_setup_video(ppu_t *ppu, uint8_t *video_frame_data);
 
 void ppu_reset(ppu_t *ppu);
 

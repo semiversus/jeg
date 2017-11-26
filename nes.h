@@ -7,25 +7,22 @@
 #include "cpu6502.h"
 #include "cartridge.h"
 
-typedef uint16_t (*controller_read_func_t) (void *reference); // read controller data [controller1, controller2] with [Right, Left, Down, Up, Start, Select, B, A]
-
 typedef struct nes_t {
-  void *reference; // pointer to reference added as argument to all callbacks
   cpu6502_t cpu;
   ppu_t ppu;
   cartridge_t cartridge;
-  controller_read_func_t controller_read;
   uint8_t controller_data[2];
-  int ram_data[0x800];
+  uint8_t controller_shift_reg[2];
+  uint8_t ram_data[0x800];
 } nes_t;
 
-void nes_init(nes_t *nes, void *reference, ppu_update_frame_func_t update_frame, controller_read_func_t controller_read);
-int nes_setup_cartridge(nes_t *nes, uint8_t *data, uint32_t size);
+int nes_setup(nes_t *nes, uint8_t *ines_data, uint32_t ines_size);
+
+void nes_setup_video(nes_t *nes, uint8_t *video_frame_data);
+
 void nes_reset(nes_t *nes);
 
 void nes_iterate_frame(nes_t *nes); // run cpu until next complete frame
-
-void nes_store_state(nes_t *nes, uint8_t *data); // stores state to given array
-void nes_load_state(nes_t *nes, uint8_t *data); // load state to given array
+void nes_set_controller(nes_t *nes, uint8_t controller1, uint8_t controller2); // [7:Right, 6:Left, 5:Down, 4:Up, 3:Start, 2:Select, 1:B, 0:A]
 
 #endif

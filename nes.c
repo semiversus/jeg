@@ -16,13 +16,13 @@ static int cpu6502_bus_read (void *ref, int address) {
     return ppu_read(&nes->ppu, address);
   }
   else if (address==0x4016) {
-    value=nes->controller_data[0]&1;
-    nes->controller_data[0]=(nes->controller_data[0]>>1)|0x80;
+    value=nes->controller_shift_reg[0]&1;
+    nes->controller_shift_reg[0]=(nes->controller_shift_reg[0]>>1)|0x80;
     return value;
   }
   else if (address==0x4017) {
-    value=nes->controller_data[1]&1;
-    nes->controller_data[1]=(nes->controller_data[1]>>1)|0x80;
+    value=nes->controller_shift_reg[1]&1;
+    nes->controller_shift_reg[1]=(nes->controller_shift_reg[1]>>1)|0x80;
     return value;
   }
   else if (address>=0x6000) {
@@ -47,9 +47,8 @@ static void cpu6502_bus_write (void *ref, int address, int value) {
     ppu_write(&nes->ppu, address, value);
   }
   else if (address==0x4016 && value&0x01) {
-    value=nes->controller_read(nes);
-    nes->controller_data[0]=value&0xFF;
-    nes->controller_data[1]=(value>>8)&0xFF;
+    nes->controller_shift_reg[0]=nes->controller_data[0];
+    nes->controller_shift_reg[1]=nes->controller_data[1];
   }
   else if (address>=0x6000) {
     cartridge_write_prg(&nes->cartridge, address, value);
@@ -102,26 +101,31 @@ static void ppu_bus_write (nes_t *nes, int address, int value) {
   }
 }
 
-void nes_init(nes_t *nes, void *reference, ppu_update_frame_func_t update_frame, controller_read_func_t controller_read) {
+int nes_setup(nes_t *nes, uint8_t *data, uint32_t size) {
+  int result;
+
   cpu6502_init(&nes->cpu, nes, cpu6502_bus_read, cpu6502_bus_write);
-  ppu_init(&nes->ppu, nes, ppu_bus_read, ppu_bus_write, update_frame);
-  nes->reference=reference;
-  nes->controller_read=controller_read;
+  ppu_init(&nes->ppu, nes, ppu_bus_read, ppu_bus_write);
+  nes->controller_data[0]=0;
+  nes->controller_data[1]=0;
+  nes->controller_shift_reg[0]=0;
+  nes->controller_shift_reg[1]=0;
+
+  result=cartridge_setup(&nes->cartridge, data, size);
+  if (result==0) {
+    nes_reset(nes);
+  }
+  return result;
+}
+
+void nes_setup_video(nes_t *nes, uint8_t *video_frame_data) {
+  ppu_setup_video(&nes->ppu, video_frame_data);
 }
 
 void nes_reset(nes_t *nes) {
   cpu6502_reset(&nes->cpu);
   ppu_reset(&nes->ppu);
   memset(&nes->ram_data, 0, 0x800);
-}
-
-int nes_setup_cartridge(nes_t *nes, uint8_t *data, uint32_t size) {
-  int result;
-  result=cartridge_setup(&nes->cartridge, data, size);
-  if (result==0) {
-    nes_reset(nes);
-  }
-  return result;
 }
 
 void nes_iterate_frame(nes_t *nes) {
@@ -138,5 +142,7 @@ void nes_iterate_frame(nes_t *nes) {
   while(!(!old_vblank && (nes->ppu.ppustatus&0x80))); 
 }
 
-void nes_store_state(nes_t *nes, uint8_t *data); // stores state to given array
-void nes_load_state(nes_t *nes, uint8_t *data); // load state to given array
+void nes_set_controller(nes_t *nes, uint8_t controller1, uint8_t controller2) {
+  nes->controller_data[0]=controller1;
+  nes->controller_data[1]=controller2;
+}

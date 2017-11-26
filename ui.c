@@ -4,7 +4,6 @@
 
 // global variables
 SDL_Surface *screen; // used in main and update_frame
-uint16_t controller_data=0; // used in main and controller_read
 
 typedef struct rgb_entry_t {uint8_t red; uint8_t green; uint8_t blue;} rgb_entry_t;
 
@@ -24,7 +23,7 @@ static const rgb_entry_t rgb_palette[64] = {
 
 uint32_t sdl_palette[64];
 
-void update_frame(void *reference, uint8_t* frame_data, int width, int height) {
+void update_frame(uint8_t* frame_data, int width, int height) {
   uint32_t *pixmem=screen->pixels;
 
   if(SDL_MUSTLOCK(screen)) {
@@ -46,10 +45,6 @@ void update_frame(void *reference, uint8_t* frame_data, int width, int height) {
   SDL_Flip(screen); 
 }
 
-uint16_t controller_read(void *reference) {
-  return controller_data;
-}
-
 uint32_t next_frame(uint32_t interval, void *p) {
 	SDL_Event event;
 	event.type = SDL_USEREVENT;
@@ -64,6 +59,8 @@ int main(int argc, char* argv[]) {
   FILE *rom_file;
   uint8_t *rom_data;
   uint32_t rom_size;
+  uint8_t video_frame_data[256*240];
+  uint8_t controller1=0;
 
   // load rom file
   if (argc<2) {
@@ -105,23 +102,26 @@ int main(int argc, char* argv[]) {
   }
 
   // init nes
-  nes_init(&nes_console, 0, update_frame, controller_read);
-  result=nes_setup_cartridge(&nes_console, rom_data, rom_size);
+  result=nes_setup(&nes_console, rom_data, rom_size);
   if (result) {
     printf("unable to parse rom file (result:%d)\n", result);
     return 6;
   }
+
+  nes_setup_video(&nes_console, video_frame_data);
   
   int quit = 0;
   uint16_t key_value;
   
-  SDL_AddTimer(20, next_frame, 0);
+  SDL_AddTimer(17, next_frame, 0);
 
   while(!quit) {
     SDL_WaitEvent(&event);
     switch (event.type) {
       case SDL_USEREVENT:
+        nes_set_controller(&nes_console, controller1, 0);
         nes_iterate_frame(&nes_console);
+        update_frame(video_frame_data, 256, 240);
         break;
       case SDL_QUIT:
         quit=1;
@@ -166,10 +166,10 @@ int main(int argc, char* argv[]) {
             default:
               break;
           }
-          controller_data|=key_value;
+          controller1|=key_value;
         }
         else {
-          controller_data&=~key_value;
+          controller1&=~key_value;
         }
         break;
       default:

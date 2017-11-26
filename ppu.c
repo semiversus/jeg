@@ -23,12 +23,18 @@
 #define PPUSTATUS_SPRITE_ZERO_HIT 64
 #define PPUSTATUS_VBLANK 128
 
-void ppu_init(ppu_t *ppu, nes_t *nes, ppu_read_func_t read, ppu_write_func_t write, ppu_update_frame_func_t update_frame) {
+void ppu_init(ppu_t *ppu, nes_t *nes, ppu_read_func_t read, ppu_write_func_t write) {
   ppu_reset(ppu);
   ppu->nes=nes;
   ppu->read=read;
   ppu->write=write;
-  ppu->update_frame=update_frame;
+}
+
+void ppu_setup_video(ppu_t *ppu, uint8_t *video_frame_data) {
+  ppu->video_frame_data=video_frame_data;
+ for (int i=0; i<256*240; i++) {
+    ppu->video_frame_data[i]=0;
+  }
 }
 
 void ppu_reset(ppu_t *ppu) {
@@ -40,9 +46,6 @@ void ppu_reset(ppu_t *ppu) {
   ppu->t=0;
   ppu->ppumask=0;
   ppu->oam_address=0;
-  for (int i=0; i<256*240; i++) {
-    ppu->frame_data[i]=0;
-  }
 }
 
 int ppu_read(ppu_t *ppu, int adr) {
@@ -270,7 +273,9 @@ int ppu_update(ppu_t *ppu) {
       if (color>=16 && color%4==0) {
         color-=16;
       }
-      ppu->frame_data[ppu->scanline*256+ppu->cycle-1]=ppu->palette[color];
+      if (ppu->video_frame_data) {
+        ppu->video_frame_data[ppu->scanline*256+ppu->cycle-1]=ppu->palette[color];
+      }
     }
 
     if (RENDER_LINE && FETCH_CYCLE) {
@@ -376,7 +381,6 @@ int ppu_update(ppu_t *ppu) {
     if (ppu->ppuctrl&PPUCTRL_NMI) {
       cpu6502_trigger_interrupt(&ppu->nes->cpu, INTERRUPT_NMI);
     }
-    ppu->update_frame(ppu->nes->reference, ppu->frame_data, 256, 240);
   }
 
   if (PRE_LINE && ppu->cycle==1) {
