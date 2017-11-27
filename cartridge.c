@@ -22,7 +22,16 @@ int cartridge_setup(cartridge_t *cartridge, uint8_t *data, uint32_t size) {
   }
 
   cartridge->prg_memory=data+(data[6]&0x04?512:0)+16; // skip header and trainer data
-  cartridge->chr_memory=cartridge->prg_memory+cartridge->prg_size;
+  if (cartridge->chr_size) {
+    cartridge->chr_memory=cartridge->prg_memory+cartridge->prg_size;
+  }
+  else {
+    cartridge->chr_memory=cartridge->chr_data;
+    cartridge->chr_size=0x2000;
+    for (int i=0; i<0x2000; i++) {
+      cartridge->chr_memory[i]=0;
+    }
+  }
 
   return 0;
 }
@@ -34,7 +43,7 @@ int cartridge_read_prg(cartridge_t *cartridge, int adr) {
 }
 
 void cartridge_write_prg(cartridge_t *cartridge, int adr, int value) {
-  cartridge->prg_memory[adr-0x8000]=value;
+  cartridge->prg_memory[(adr-0x8000)%cartridge->prg_size]=value;
 }
 
 // access ppu memory bus
