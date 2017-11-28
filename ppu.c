@@ -400,5 +400,5 @@ int ppu_update(ppu_t *ppu) {
     ppu->last_cycle_number++;
   }
 
-  return (341*262-((ppu->scanline+21)%262)*341-ppu->cycle+2)/3;
+  return (341*262-((ppu->scanline+21)%262)*341-ppu->cycle)/3+1;
 }
