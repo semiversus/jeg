@@ -18,10 +18,10 @@ test_klaus2m5: $(SRCS_CPU6502) test/klaus2m5/system.c
 run_klaus2m5: test_klaus2m5
 	./test_klaus2m5 test/klaus2m5/6502_functional_test.bin
 
-test_roms: $(SRC_NES) test/nes_roms/test_roms.c
+test_roms: $(SRCS_NES) test/nes_roms/test_roms.c
 	$(CC) $(SRCS_NES) -I. test/nes_roms/test_roms.c `sdl-config --cflags --libs` -o $@ -O3
 
-run_test_roms:  test_roms
+run_test_roms: test_roms
 	cd test/nes_roms && ../../test_roms -p test.key
 
 clean:
