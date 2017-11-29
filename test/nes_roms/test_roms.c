@@ -60,6 +60,7 @@ int load_rom(nes_t *nes, char *filename) {
   FILE *rom_file;
   uint32_t rom_size=0;
   int result;
+  uint8_t key_value;
 
   rom_file=fopen(filename, "rb");
 
@@ -81,7 +82,7 @@ int load_rom(nes_t *nes, char *filename) {
   }
   fclose(rom_file);
 
-  result=nes_setup(nes, rom_data, rom_size);
+  result=nes_setup_rom(nes, rom_data, rom_size);
   if (result) {
     printf("unable to parse rom file (result:%d)\n", result);
     return 3;
@@ -93,6 +94,7 @@ int load_rom(nes_t *nes, char *filename) {
 void free_rom() {
   if (rom_data) {
     free(rom_data);
+    rom_data=0;
   }
 }
 
@@ -104,6 +106,7 @@ int main(int argc, char* argv[]) {
   uint8_t nes_frame_data[256*240];
   uint8_t test_frame_data[256*240*3];
   uint8_t controller1=0;
+  int key_value=0;
 
   // parse command line arguments
   if (argc<3) {
@@ -144,12 +147,12 @@ int main(int argc, char* argv[]) {
     sdl_palette[idx]=SDL_MapRGB(screen->format, rgb_palette[idx].red, rgb_palette[idx].green, rgb_palette[idx].blue);
   }
 
+  nes_init(&nes_console);
   nes_setup_video(&nes_console, nes_frame_data);
   
   int quit = 0;
   
   if (test_mode==PLAY) {
-    int key_value;
     int color;
     int valid;
     char line[256*240+3];
@@ -158,6 +161,9 @@ int main(int argc, char* argv[]) {
         printf("error reading keypress file\n");
         break;
       }
+
+      line[strcspn(line, "\r\n")]=0;
+
       switch (line[0]) {
         case 'K': // simulate key press and advance one frame
           sscanf(line+1, "%x", &key_value);
@@ -209,7 +215,6 @@ int main(int argc, char* argv[]) {
   }
   else {
     while(!quit) {
-      uint8_t key_value;
       char filename[512];
 
       SDL_WaitEvent(&event);
@@ -250,7 +255,6 @@ int main(int argc, char* argv[]) {
               update_frame(nes_frame_data, 256, 240);
               break;
             case SDLK_l: // load rom
-              printf("rom file:");
               while(scanf("%512s", filename)!=1);
               load_rom(&nes_console, filename);
               fprintf(keypress_file, "L%s\n", filename);
@@ -283,7 +287,6 @@ int main(int argc, char* argv[]) {
 
   free_rom();
   fclose(keypress_file);
-  free(rom_data);
   SDL_Quit();
   
   return 0;

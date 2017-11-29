@@ -102,7 +102,8 @@ int main(int argc, char* argv[]) {
   }
 
   // init nes
-  result=nes_setup(&nes_console, rom_data, rom_size);
+  nes_init(&nes_console);
+  result=nes_setup_rom(&nes_console, rom_data, rom_size);
   if (result) {
     printf("unable to parse rom file (result:%d)\n", result);
     return 6;

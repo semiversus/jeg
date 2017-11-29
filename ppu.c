@@ -33,7 +33,7 @@ void ppu_init(ppu_t *ppu, nes_t *nes, ppu_read_func_t read, ppu_write_func_t wri
 
 void ppu_setup_video(ppu_t *ppu, uint8_t *video_frame_data) {
   ppu->video_frame_data=video_frame_data;
- for (int i=0; i<256*240; i++) {
+  for (int i=0; i<256*240; i++) {
     ppu->video_frame_data[i]=0;
   }
 }

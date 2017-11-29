@@ -16,7 +16,8 @@ typedef struct nes_t {
   uint8_t ram_data[0x800];
 } nes_t;
 
-int nes_setup(nes_t *nes, uint8_t *ines_data, uint32_t ines_size);
+void nes_init(nes_t *nes);
+int nes_setup_rom(nes_t *nes, uint8_t *ines_data, uint32_t ines_size);
 
 void nes_setup_video(nes_t *nes, uint8_t *video_frame_data);
 

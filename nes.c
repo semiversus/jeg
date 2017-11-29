@@ -101,11 +101,14 @@ static void ppu_bus_write (nes_t *nes, int address, int value) {
   }
 }
 
-int nes_setup(nes_t *nes, uint8_t *data, uint32_t size) {
-  int result;
-
+void nes_init(nes_t *nes) { 
   cpu6502_init(&nes->cpu, nes, cpu6502_bus_read, cpu6502_bus_write);
   ppu_init(&nes->ppu, nes, ppu_bus_read, ppu_bus_write);
+}
+
+int nes_setup_rom(nes_t *nes, uint8_t *data, uint32_t size) {
+  int result;
+
   nes->controller_data[0]=0;
   nes->controller_data[1]=0;
   nes->controller_shift_reg[0]=0;
