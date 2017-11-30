@@ -255,6 +255,7 @@ int main(int argc, char* argv[]) {
               update_frame(nes_frame_data, 256, 240);
               break;
             case SDLK_l: // load rom
+              printf("load rom file:");
               while(scanf("%512s", filename)!=1);
               load_rom(&nes_console, filename);
               fprintf(keypress_file, "L%s\n", filename);

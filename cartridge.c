@@ -39,11 +39,21 @@ int cartridge_setup(cartridge_t *cartridge, uint8_t *data, uint32_t size) {
 
 // access cpu memory bus
 int cartridge_read_prg(cartridge_t *cartridge, int adr) {
-  return cartridge->prg_memory[(adr-0x8000)%cartridge->prg_size];
+  if (adr>=0x8000) {
+    return cartridge->prg_memory[(adr-0x8000)%cartridge->prg_size];
+  }
+  else {
+    return cartridge->io_data[adr-0x6000];
+  }
 }
 
 void cartridge_write_prg(cartridge_t *cartridge, int adr, int value) {
-  cartridge->prg_memory[(adr-0x8000)%cartridge->prg_size]=value;
+  if (adr>=0x8000) {
+    cartridge->prg_memory[(adr-0x8000)%cartridge->prg_size]=value;
+  }
+  else {
+    cartridge->io_data[adr-0x6000]=value;
+  }
 }
 
 // access ppu memory bus

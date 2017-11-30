@@ -9,6 +9,7 @@ typedef struct cartridge_t {
   int chr_size;
   uint8_t *chr_memory;
   uint8_t ram_data[0x2000];
+  uint8_t io_data[0x2000];
   uint8_t chr_data[0x2000];
   int mapper;
   int mirror; // 0-horizontal, 1-vertical, 2-none

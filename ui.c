@@ -164,6 +164,9 @@ int main(int argc, char* argv[]) {
             case SDLK_ESCAPE: 
               quit=1;
               break;
+            case SDLK_r: 
+              nes_reset(&nes_console);
+              break;
             default:
               break;
           }
