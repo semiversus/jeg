@@ -21,6 +21,9 @@ void cpu6502_init(cpu6502_t *cpu, void *reference, cpu6502_read_func_t read, cpu
 
 void cpu6502_reset(cpu6502_t *cpu) {
   // load program counter with address stored at 0xFFFC (low byte) and 0xFFFD (high byte)
+  cpu->reg_A=0;
+  cpu->reg_X=0;
+  cpu->reg_Y=0;
   cpu->reg_PC=cpu->read(cpu->reference, 0xFFFC)+(cpu->read(cpu->reference, 0xFFFD)<<8);
   cpu->reg_SP=0xFD; // reset stack pointer
   SET_FLAGS(0x24); // set following status flags: UNUSED, INTERRUPT
@@ -118,12 +121,14 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         }
         break;
       case ADR_ACCUMULATOR:
+        cpu->read(cpu->reference, cpu->reg_PC+1); // dummy read
         address=0;
         break;
       case ADR_IMMEDIATE:
         address=cpu->reg_PC+1;
         break;
       case ADR_IMPLIED:
+        cpu->read(cpu->reference, cpu->reg_PC+1); // dummy read
         address=0;
         break;
       case ADR_INDEXED_INDIRECT:
