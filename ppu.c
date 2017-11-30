@@ -80,8 +80,7 @@ int ppu_read(ppu_t *ppu, int adr) {
       ppu->v+=((ppu->ppuctrl&PPUCTRL_INCREMENT)==0)?1:32;
       break;
     default:
-      // TODO: should not happen
-      value=0;
+      value=ppu->register_data;
       break;
   }
   return value;
@@ -139,8 +138,7 @@ void ppu_write(ppu_t *ppu, int adr, int value) {
       address_temp=value<<8;
       for(int i=0; i<256; i++) {
         int v=ppu->nes->cpu.read(ppu->nes, address_temp);
-        ppu->oam_data[ppu->oam_address]=v;
-        ppu->oam_address++;
+        ppu->oam_data[ppu->oam_address+i]=v;
         address_temp++;
       }
       ppu->nes->cpu.stall_cycles+=513;
@@ -393,7 +391,7 @@ int ppu_update(ppu_t *ppu) {
         }
       }
 
-      if (PRE_LINE && ppu->cycle==1) {
+      if (ppu->scanline==260 && ppu->cycle==329) {
         ppu->ppustatus&=~(PPUSTATUS_VBLANK|PPUSTATUS_SPRITE_ZERO_HIT|PPUSTATUS_SPRITE_OVERFLOW);
       }
     }
