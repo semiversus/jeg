@@ -15,10 +15,26 @@ int cartridge_setup(cartridge_t *cartridge, uint8_t *data, uint32_t size) {
   cartridge->prg_size=16384*data[4];
   cartridge->chr_size=8192*data[5];
   cartridge->mirror=(data[6]&0x01)+((data[6]>>2)&0x02);
-  cartridge->mapper=(data[6]>>4)+(data[7]&0xF0);
+
+  if (data[7]=='D' && data[8]=='i' && data[9]=='s' && data[10]=='k' && data[11]=='D' &&
+      data[12]=='u' && data[13]=='d' && data[14]=='e' && data[15]=='!') {
+    // if "DiskDude!" string is present, ignore upper 4 bits for mapper
+    cartridge->mapper=(data[6]>>4);
+  }
+  else {
+    cartridge->mapper=(data[6]>>4)+(data[7]&0xF0);
+  }
+
+  if (cartridge->mapper!=0) {
+    return 3;
+  }
 
   if (size<cartridge->prg_size+cartridge->chr_size+16+(data[6]&0x04?512:0)) {
-    return 3;
+    return 4;
+  }
+
+  for (int i=0; i<0x2000; i++) {
+    cartridge->io_data[i]=0;
   }
 
   cartridge->prg_memory=data+(data[6]&0x04?512:0)+16; // skip header and trainer data
@@ -58,9 +74,9 @@ void cartridge_write_prg(cartridge_t *cartridge, int adr, int value) {
 
 // access ppu memory bus
 int cartridge_read_chr(cartridge_t *cartridge, int adr) {
-  return cartridge->chr_memory[adr];
+  return cartridge->chr_memory[adr%cartridge->chr_size];
 }
 
 void cartridge_write_chr(cartridge_t *cartridge, int adr, int value) {
-  cartridge->chr_memory[adr]=value;
+  cartridge->chr_memory[adr%cartridge->chr_size]=value;
 }

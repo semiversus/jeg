@@ -47,6 +47,8 @@ void ppu_reset(ppu_t *ppu) {
   ppu->t=0;
   ppu->ppumask=0;
   ppu->oam_address=0;
+  ppu->register_data=0;
+  ppu->name_table_byte=0;
   if (ppu->video_frame_data) {
     for (int i=0; i<256*240; i++) {
       ppu->video_frame_data[i]=0;
