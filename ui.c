@@ -24,6 +24,7 @@ static const rgb_entry_t rgb_palette[64] = {
 uint32_t sdl_palette[64];
 
 void update_frame(uint8_t* frame_data, int width, int height) {
+  SDL_Rect rect={0,0,2,2};
   uint32_t *pixmem=screen->pixels;
 
   if(SDL_MUSTLOCK(screen)) {
@@ -32,10 +33,14 @@ void update_frame(uint8_t* frame_data, int width, int height) {
     }
   }
   
-  for(int p = 0; p < width*height; p++ )  {
-    *pixmem=sdl_palette[*frame_data];
-    pixmem++;
-    frame_data++;
+  for(int y=0; y<height; y++) {
+    rect.y=y*2;
+    for(int x=0; x<width; x++) {
+      rect.x=x*2;
+      SDL_FillRect(screen, &rect, sdl_palette[*frame_data]);
+      frame_data++;
+      pixmem++;
+    }
   }
 
   if(SDL_MUSTLOCK(screen)) {
@@ -91,7 +96,7 @@ int main(int argc, char* argv[]) {
     return 4;
   }
    
-  if (!(screen = SDL_SetVideoMode(256, 240, 32, /*SDL_FULLSCREEN|*/SDL_HWSURFACE))) {
+  if (!(screen = SDL_SetVideoMode(256*2, 240*2, 32, /*SDL_FULLSCREEN|*/SDL_HWSURFACE))) {
     SDL_Quit();
     printf("unable to set sdl video mode\n");
     return 5;
