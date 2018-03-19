@@ -1,8 +1,6 @@
 # JEG Emulation Gathering
 
-Catch-Up Emulation Framework with Nintendo NES as main target.
-
-**For *Pull Requests*/*Merge Requests* please use https://gitlab.jena.at/guenther/jeg . The GitHub repository is just a mirror!**
+Catch-Up Emulation Framework with Nintendo NES as main target under MIT license.
 
 ## Dependencies
 * C compiler (C99)
