@@ -25,7 +25,8 @@ int cartridge_setup(cartridge_t *cartridge, uint8_t *data, uint32_t size) {
     cartridge->mapper=(data[6]>>4)+(data[7]&0xF0);
   }
 
-  if (cartridge->mapper!=0) {
+  if (cartridge->mapper!=0 && cartridge->mapper!=3) { // ines #3 is just a quick fix for a test rom
+    printf("%d\n", cartridge->mapper);
     return 3;
   }
 
