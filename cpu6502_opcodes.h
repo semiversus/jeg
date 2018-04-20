@@ -15,15 +15,15 @@ typedef enum operation_enum_t {
   OP_SHX, OP_SHY, OP_SLO, OP_SRE, OP_STA, OP_STX, OP_STY, OP_TAS, OP_TAX, OP_TAY, OP_TSX, OP_TXA, OP_TXS, OP_TYA, OP_XAA
 } operation_enum_t;
 
-struct opcode_tbl_entry {
+typedef struct opcode_tbl_entry_t {
   char *mnemonic;
   operation_enum_t operation;
   address_mode_enum_t address_mode;
   int bytes;
   int cycles;
   int page_cross_cycles;
-} opcode_tbl_entry;
+} opcode_tbl_entry_t;
 
-extern struct opcode_tbl_entry opcode_tbl[];
+extern opcode_tbl_entry_t opcode_tbl[];
 
 #endif

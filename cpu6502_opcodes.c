@@ -1,6 +1,6 @@
 #include "cpu6502_opcodes.h"
 
-struct opcode_tbl_entry opcode_tbl[256]={
+opcode_tbl_entry_t opcode_tbl[256]={
   // mnemonic   |address mode            |cycles
   //    |operation                    |bytes|page crossed cycles
   {"BRK", OP_BRK, ADR_IMPLIED         , 1, 7, 0}, // 0x00

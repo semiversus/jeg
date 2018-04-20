@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 void cpu6502_dump(cpu6502_t *cpu) {
-  struct opcode_tbl_entry opcode=opcode_tbl[cpu->read(cpu->reference, cpu->reg_PC)];
+  opcode_tbl_entry_t opcode=opcode_tbl[cpu->read(cpu->reference, cpu->reg_PC)];
 
   printf("%8ld A=$%02X X=$%02X Y=$%02X SP=$%02X PC=$%04X ", cpu->cycle_number, cpu->reg_A, cpu->reg_X, cpu->reg_Y, cpu->reg_SP, cpu->reg_PC);
   printf("%c%c%c%c", cpu->status_N?'N':'n', cpu->status_V?'V':'v', cpu->status_U?'U':'u', cpu->status_B?'B':'b');
