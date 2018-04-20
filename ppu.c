@@ -157,6 +157,7 @@ void ppu_write(ppu_t *ppu, int adr, int value) {
 inline uint32_t fetch_sprite_pattern(ppu_t *ppu, int i, int row) {
   int tile=ppu->oam_data[i*4+1];
   int attributes=ppu->oam_data[i*4+2];
+  int table;
   uint16_t address;
 
   if ((ppu->ppuctrl&PPUCTRL_SPRITE_SIZE)==0) {
@@ -169,12 +170,13 @@ inline uint32_t fetch_sprite_pattern(ppu_t *ppu, int i, int row) {
     if ((attributes&0x80)==0x80) {
       row=15-row;
     }
+    table=tile&0x01;
     tile&=0xFE;
     if (row>7) {
       tile++;
       row-=8;
     }
-    address=0x1000*(tile&0x01)+tile*16+row;
+    address=0x1000*(table)+tile*16+row;
   }
   int low_tile_byte=ppu->read(ppu->nes, address);
   int high_tile_byte=ppu->read(ppu->nes, address+8);
