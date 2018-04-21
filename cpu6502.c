@@ -68,7 +68,7 @@ void cpu6502_reset(cpu6502_t *cpu) {
   } while(0)
 
 int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
-  struct opcode_tbl_entry opcode;
+  opcode_tbl_entry_t opcode;
   int cycles_passed; // cycles used in one iteration
   int address=0; // calculated address for memory interaction
   int temp_value, temp_value2; // temporary value used for calculation

@@ -9,6 +9,9 @@ all: jeg
 jeg: $(SRCS_UI)
 	$(CC) $(SRCS_UI) -I. -O3 -o $@ `sdl-config --cflags --libs` -Wall -pedantic -DWITHOUT_DECIMAL_MODE $(CFLAGS)
 
+jeg.exe: $(SRCS_UI)
+	i686-w64-mingw32-gcc  $(SRCS_UI) -mwindows -I. -O3 -o $@ -D_GNU_SOURCE=1 -D_REENTRANT -Iwindows/include/SDL -Lwindows/libs -lmingw32 -lSDLmain -lSDL -Wall -pedantic -DWITHOUT_DECIMAL_MODE $(CFLAGS)
+
 test: run_klaus2m5 run_test_roms
 
 test_klaus2m5: $(SRCS_CPU6502) test/klaus2m5/system.c 
@@ -25,4 +28,4 @@ run_test_roms: test_roms
 	cd test/nes_roms && ../../test_roms -p test.key
 
 clean:
-	rm jeg test_klaus2m5 test/klaus2m5/rom.inc test_roms -rf
+	rm jeg jeg.exe test_klaus2m5 test/klaus2m5/rom.inc test_roms -rf

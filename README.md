@@ -1,11 +1,10 @@
 # JEG Emulation Gathering
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Catch-Up Emulation Framework with Nintendo NES as main target under MIT license.
+Platform independent catch-up emulation framework with Nintendo NES as main target.
 
 ## Dependencies
 * C compiler (C99)
-* `make`
-* SDL library (for graphics and audio)
 
 ## What's working
 * CPU 6502 *completed*
@@ -13,6 +12,7 @@ Catch-Up Emulation Framework with Nintendo NES as main target under MIT license.
 * APU *missing*
 * Cartridge abstraction *draft is working*
 * Supported Mappers: *INES #0*
+* Prototype UI using SDL library (for graphics and audio)
 
 ## Usefull projects during developlemt
 * [github:fogleman/nes](https://github.com/fogleman/nes) (Go, pixel based rendering)
