@@ -2,11 +2,15 @@
 #define CPU6502_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef enum {INTERRUPT_NONE=0, INTERRUPT_NMI, INTERRUPT_IRQ} cpu6502_interrupt_enum_t;
 
-typedef int (*cpu6502_read_func_t) (void *, int address); // read data [8bit] from address [16bit]
-typedef void (*cpu6502_write_func_t) (void *, int address, int value); // write data [8bit] to address [16bit]
+typedef uint_fast8_t (cpu6502_read_func_t) (void *, uint_fast16_t hwAddress); // read data [8bit] from address [16bit]
+typedef void (cpu6502_write_func_t) (void *, uint_fast16_t hwAddress, uint_fast8_t chValue); // write data [8bit] to address [16bit]
+
+typedef uint_fast16_t (cpu6502_readw_func_t) (void *, uint_fast16_t hwAddress);
+typedef void (cpu6502_writew_func_t)(void *, uint_fast16_t hwAddress, uint_fast16_t hwValue);
 
 typedef struct cpu6502_t {
   // internal registers
@@ -33,15 +37,26 @@ typedef struct cpu6502_t {
 
   // memory interface
   void *reference; // pointer to a reference, added as argument to read and write functions
-  cpu6502_read_func_t read;
-  cpu6502_write_func_t write;
+  cpu6502_read_func_t *read;
+  cpu6502_write_func_t *write;
+  cpu6502_readw_func_t *readw;
+  cpu6502_writew_func_t *writew;
 } cpu6502_t;
 
-void cpu6502_init(cpu6502_t *cpu, void *reference, cpu6502_read_func_t read, cpu6502_write_func_t write);
+typedef struct 
+{
+    void                    *reference; 
+    cpu6502_read_func_t     *read; 
+    cpu6502_write_func_t    *write;
+    cpu6502_readw_func_t    *readw; 
+    cpu6502_writew_func_t   *writew;
+}cpu6502_cfg_t;
 
-void cpu6502_reset(cpu6502_t *cpu); // reset cpu to powerup state
-int cpu6502_run(cpu6502_t *cpu, int n_cycles); // run cpu for (at least) n_cycles; a started instruction will not be "truncated";
+extern bool cpu6502_init(cpu6502_t *cpu, cpu6502_cfg_t *ptCFG);
+
+extern void cpu6502_reset(cpu6502_t *cpu); // reset cpu to powerup state
+extern int cpu6502_run(cpu6502_t *cpu, int n_cycles); // run cpu for (at least) n_cycles; a started instruction will not be "truncated";
                                                // returns number of cycles cpu ran
-void cpu6502_trigger_interrupt(cpu6502_t *cpu, cpu6502_interrupt_enum_t interrupt); // trigger an interrupt
+extern void cpu6502_trigger_interrupt(cpu6502_t *cpu, cpu6502_interrupt_enum_t interrupt); // trigger an interrupt
 
 #endif

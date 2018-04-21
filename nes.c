@@ -2,15 +2,18 @@
 #include "cpu6502_debug.h"
 #include <string.h>
 
-static int cpu6502_bus_read (void *ref, int address) {
+
+
+static uint_fast8_t cpu6502_bus_read (void *ref, uint_fast16_t address) 
+{
   nes_t* nes=(nes_t *)ref;
   int value;
 
   if (address<0x2000) {
-    return nes->ram_data[address%0x800];
+    return nes->ram_data[address & 0x7FF];
   }
   else if (address<0x4000) {
-    return ppu_read(&nes->ppu, 0x2000+address%8);
+    return ppu_read(&nes->ppu, 0x2000 + (address & 0x07));
   }
   else if (address==0x4014) {
     return ppu_read(&nes->ppu, address);
@@ -34,14 +37,15 @@ static int cpu6502_bus_read (void *ref, int address) {
   }
 }
 
-static void cpu6502_bus_write (void *ref, int address, int value) {
+static void cpu6502_bus_write (void *ref, uint_fast16_t address, uint_fast8_t value) 
+{
   nes_t* nes=(nes_t *)ref;
 
   if (address<0x2000) {
-    nes->ram_data[address%0x800]=value;
+    nes->ram_data[address & 0x7FF] = value;
   }
   else if (address<0x4000) {
-    ppu_write(&nes->ppu, 0x2000+address%8, value);
+    ppu_write(&nes->ppu, 0x2000+ (address & 0x07), value);
   }
   else if (address==0x4014) {
     ppu_write(&nes->ppu, address, value);
@@ -58,52 +62,94 @@ static void cpu6502_bus_write (void *ref, int address, int value) {
   }
 }
 
+static uint_fast16_t cpu6502_bus_readw (void *ref, uint_fast16_t hwAddress) 
+{
+    nes_t* nes=(nes_t *)ref;
+    int value;
+
+    if ( hwAddress<0x2000 ) {
+        return *(uint16_t *)&(nes->ram_data[hwAddress & 0x7FF]);
+    } else  if (hwAddress>=0x6000) {
+        return cartridge_readw_prg(&nes->cartridge, hwAddress);
+    } else {
+        return cpu6502_bus_read(ref, hwAddress) | (cpu6502_bus_read(ref, hwAddress + 1) << 8);
+    }
+}
+
+static void cpu6502_bus_writew (void *ref, uint_fast16_t hwAddress, uint_fast16_t hwValue) 
+{
+    
+}
+
 const int mirror_lookup[20]={0,0,1,1,0,1,0,1,0,0,0,0,1,1,1,1,0,1,2,3};
 
 int mirror_address (int mode, int address) {
-  address=address%0x1000;
-  return 0x2000+mirror_lookup[mode*4+(address/0x400)]*0x400+(address%0x400);
+  address=address & 0x0FFF;
+  return 0x2000+mirror_lookup[mode*4+(address>>10)]*0x400+(address&0x3ff);
 }
 
-static int ppu_bus_read (nes_t *nes, int address) {
-  int value;
-  address%=0x4000;
-  if (address<0x2000) {
-    value=cartridge_read_chr(&nes->cartridge, address);
-  }
-  else if (address<0x3F00) {
-    value=nes->ppu.name_table[mirror_address(nes->cartridge.mirror, address)%2048];
-  }
-  else if (address<0x4000) {
-    address=address%32;
-    if (address>=16 && address%4==0) {
-      address-=16;
+static int ppu_bus_read (nes_t *nes, int address) 
+{
+    int value;
+    address &= 0x3FFF;
+    if (address <0x2000) {
+        value=cartridge_read_chr(&nes->cartridge, address);
+    } else if (address<0x3F00) {
+        value=nes->ppu.name_table[mirror_address(nes->cartridge.mirror, address) & 0x7FF];
+    } else if (address<0x4000) {
+        address=address & 0x1F;
+        if (address>=16 && ((address & 0x03) == 0)) {
+            address-=16;
+        }
+        value=nes->ppu.palette[address];
     }
-    value=nes->ppu.palette[address];
-  }
-  return value;
+    return value;
 }
 
-static void ppu_bus_write (nes_t *nes, int address, int value) {
-  address%=0x4000;
-  if (address<0x2000) {
-    cartridge_write_chr(&nes->cartridge, address, value);
-  }
-  else if (address<0x3F00) {
-    nes->ppu.name_table[mirror_address(nes->cartridge.mirror, address)%2048]=value;
-  }
-  else if (address<0x4000) {
-    address=address%32;
-    if (address>=16 && address%4==0) {
-      address-=16;
+static void ppu_bus_write (nes_t *nes, int address, int value) 
+{
+    address &= 0x3FFF;
+    if (address<0x2000) {
+        cartridge_write_chr(&nes->cartridge, address, value);
+    } else if (address<0x3F00) {
+        nes->ppu.name_table[mirror_address(nes->cartridge.mirror, address) & 0x7FF ]=value;
+    } else if (address<0x4000) {
+        address=address & 0x1F;
+        if (address>=16 && ((address & 0x03) == 0)) {
+            address-=16;
+        }
+        nes->ppu.palette[address]=value;
     }
-    nes->ppu.palette[address]=value;
-  }
 }
 
-void nes_init(nes_t *nes) { 
-  cpu6502_init(&nes->cpu, nes, cpu6502_bus_read, cpu6502_bus_write);
-  ppu_init(&nes->ppu, nes, ppu_bus_read, ppu_bus_write);
+bool nes_init(nes_t *ptNES) 
+{ 
+ 
+    bool bResult = false;
+    do {
+        if (NULL == ptNES) {
+            break;
+        } 
+        {
+            cpu6502_cfg_t tCFG = {
+                ptNES,
+                &cpu6502_bus_read,
+                &cpu6502_bus_write,
+                &cpu6502_bus_readw,
+                &cpu6502_bus_writew,
+            };
+            if (! cpu6502_init(&ptNES->cpu, &tCFG)) {
+                break;
+            }
+        } 
+
+  
+        ppu_init(&ptNES->ppu, ptNES, ppu_bus_read, ppu_bus_write);
+        
+        bResult = true;
+    } while(false);
+    
+    return bResult;
 }
 
 int nes_setup_rom(nes_t *nes, uint8_t *data, uint32_t size) {
