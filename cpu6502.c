@@ -67,6 +67,12 @@ void cpu6502_reset(cpu6502_t *cpu) {
     cpu->status_C= (a)>=(b)?1:0; \
   } while(0)
 
+#ifdef WITHOUT_DUMMY_READS
+  #define DUMMY_READ(adr)
+#else
+ #define DUMMY_READ(adr) cpu->read(cpu->reference, adr);
+#endif
+
 int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
   opcode_tbl_entry_t opcode;
   int cycles_passed; // cycles used in one iteration
@@ -110,25 +116,25 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         address=READ16(cpu->reg_PC+1)+cpu->reg_X;
         if (PAGE_DIFFERS(address-cpu->reg_X, address)) {
           cycles_passed+=opcode.page_cross_cycles;
-          cpu->read(cpu->reference, address-0x100); // dummy read
+          DUMMY_READ(address-0x100);
         }
         break;
       case ADR_ABSOLUTE_Y:
         address=READ16(cpu->reg_PC+1)+cpu->reg_Y;
         if (PAGE_DIFFERS(address-cpu->reg_Y, address)) {
           cycles_passed+=opcode.page_cross_cycles;
-          cpu->read(cpu->reference, address-0x100); // dummy read
+          DUMMY_READ(address-0x100);
         }
         break;
       case ADR_ACCUMULATOR:
-        cpu->read(cpu->reference, cpu->reg_PC+1); // dummy read
+        DUMMY_READ(cpu->reg_PC+1);
         address=0;
         break;
       case ADR_IMMEDIATE:
         address=cpu->reg_PC+1;
         break;
       case ADR_IMPLIED:
-        cpu->read(cpu->reference, cpu->reg_PC+1); // dummy read
+        DUMMY_READ(cpu->reg_PC+1);
         address=0;
         break;
       case ADR_INDEXED_INDIRECT:
@@ -141,7 +147,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         address=READ16BUG(cpu->read(cpu->reference, cpu->reg_PC+1))+cpu->reg_Y;
         if (PAGE_DIFFERS(address-cpu->reg_Y, address)) {
           cycles_passed+=opcode.page_cross_cycles;
-          cpu->read(cpu->reference, address-0x100); // dummy read
+          DUMMY_READ(address-0x100);
         }
         break;
       case ADR_RELATIVE:
