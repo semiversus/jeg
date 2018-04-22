@@ -9,6 +9,9 @@ all: jeg
 jeg: $(SRCS_UI)
 	$(CC) $(SRCS_UI) -I. -O3 -o $@ `sdl-config --cflags --libs` -Wall -pedantic -DWITHOUT_DECIMAL_MODE $(CFLAGS)
 
+benchmark: $(SRCS_NES) benchmark.c
+	$(CC) $(SRCS_NES) benchmark.c -I. -O3 -o $@ -Wall -pedantic -DWITHOUT_DECIMAL_MODE $(CFLAGS)
+
 jeg.exe: $(SRCS_UI)
 	i686-w64-mingw32-gcc  $(SRCS_UI) -mwindows -I. -O3 -o $@ -D_GNU_SOURCE=1 -D_REENTRANT -Iwindows/include/SDL -Lwindows/libs -lmingw32 -lSDLmain -lSDL -Wall -pedantic -DWITHOUT_DECIMAL_MODE $(CFLAGS)
 
