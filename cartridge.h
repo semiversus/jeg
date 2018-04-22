@@ -18,8 +18,11 @@ typedef struct cartridge_t {
 int cartridge_setup(cartridge_t *cartridge, uint8_t *data, uint32_t size);
 
 // access cpu memory bus
-int cartridge_read_prg(cartridge_t *cartridge, int adr);
-void cartridge_write_prg(cartridge_t *cartridge, int adr, int value);
+extern uint_fast8_t cartridge_read_prg(cartridge_t *cartridge, uint_fast16_t adr);
+extern uint_fast16_t cartridge_readw_prg(cartridge_t *cartridge, uint_fast16_t adr);
+
+extern void cartridge_write_prg(cartridge_t *cartridge, int adr, int value);
+extern uint8_t *cartridge_get_prg_src_address(cartridge_t *cartridge, uint_fast16_t hwAddress);
 
 // access ppu memory bus
 int cartridge_read_chr(cartridge_t *cartridge, int adr);

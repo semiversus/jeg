@@ -2,10 +2,15 @@
 #define NES_H
 
 #include <stdint.h>
-
+#include <stdbool.h>
 #include "ppu.h"
 #include "cpu6502.h"
 #include "cartridge.h"
+
+typedef struct {
+    ppu_draw_pixel_func_t *fnDrawPixel;
+    void *ptTag;
+}nes_cfg_t;
 
 typedef struct nes_t {
   cpu6502_t cpu;
@@ -16,14 +21,14 @@ typedef struct nes_t {
   uint8_t ram_data[0x800];
 } nes_t;
 
-void nes_init(nes_t *nes);
-int nes_setup_rom(nes_t *nes, uint8_t *ines_data, uint32_t ines_size);
+extern bool nes_init(nes_t *, nes_cfg_t *);
+extern int nes_setup_rom(nes_t *, uint8_t *, uint32_t );
 
-void nes_setup_video(nes_t *nes, uint8_t *video_frame_data);
+//extern void nes_setup_video(nes_t *, uint8_t *);
 
-void nes_reset(nes_t *nes);
+extern void nes_reset(nes_t *);
 
-void nes_iterate_frame(nes_t *nes); // run cpu until next complete frame
-void nes_set_controller(nes_t *nes, uint8_t controller1, uint8_t controller2); // [7:Right, 6:Left, 5:Down, 4:Up, 3:Start, 2:Select, 1:B, 0:A]
-
+extern void nes_iterate_frame(nes_t *); // run cpu until next complete frame
+extern void nes_set_controller(nes_t *, uint8_t , uint8_t ); // [7:Right, 6:Left, 5:Down, 4:Up, 3:Start, 2:Select, 1:B, 0:A]
+extern bool nes_is_ready_to_refresh(nes_t *nes);
 #endif
