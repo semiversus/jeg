@@ -38,5 +38,5 @@ These tests are also not called by `make test`.
 * [cpu_reset](https://github.com/christopherpow/nes-test-roms/tree/master/cpu_reset) by *Shay "blargg" Green* - no soft reset available yet
 * [ppu_vbl_nmi](https://github.com/christopherpow/nes-test-roms/tree/master/ppu_vbl_nmi) by *Shay "blargg" Green* - would be really nice...
 
-# Thanks
+## Thanks
 * [GorgonMeducer](https://github.com/GorgonMeducer) doing the [EmbeddedNES](https://github.com/GorgonMeducer/EmbeddedNES)-Project for discussing a lot of optimisation patterns, sharing his know how and bring in usefull code!
