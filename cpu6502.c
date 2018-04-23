@@ -74,7 +74,7 @@ void cpu6502_reset(cpu6502_t *cpu) {
 #endif
 
 int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
-  opcode_tbl_entry_t opcode;
+  opcode_tbl_entry_t *ptOpcode;
   int cycles_passed; // cycles used in one iteration
   int address=0; // calculated address for memory interaction
   int temp_value, temp_value2; // temporary value used for calculation
@@ -105,24 +105,24 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
     }
 
     // read op code
-    opcode=opcode_tbl[cpu->read(cpu->reference, cpu->reg_PC)];
+    ptOpcode = &opcode_tbl[cpu->read(cpu->reference, cpu->reg_PC)];
 
     // handle address mode
-    switch (opcode.address_mode) {
+    switch (ptOpcode->address_mode) {
       case ADR_ABSOLUTE:
         address=READ16(cpu->reg_PC+1);
         break;
       case ADR_ABSOLUTE_X:
         address=READ16(cpu->reg_PC+1)+cpu->reg_X;
         if (PAGE_DIFFERS(address-cpu->reg_X, address)) {
-          cycles_passed+=opcode.page_cross_cycles;
+          cycles_passed+=ptOpcode->page_cross_cycles;
           DUMMY_READ(address-0x100);
         }
         break;
       case ADR_ABSOLUTE_Y:
         address=READ16(cpu->reg_PC+1)+cpu->reg_Y;
         if (PAGE_DIFFERS(address-cpu->reg_Y, address)) {
-          cycles_passed+=opcode.page_cross_cycles;
+          cycles_passed+=ptOpcode->page_cross_cycles;
           DUMMY_READ(address-0x100);
         }
         break;
@@ -146,7 +146,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
       case ADR_INDIRECT_INDEXED:
         address=READ16BUG(cpu->read(cpu->reference, cpu->reg_PC+1))+cpu->reg_Y;
         if (PAGE_DIFFERS(address-cpu->reg_Y, address)) {
-          cycles_passed+=opcode.page_cross_cycles;
+          cycles_passed+=ptOpcode->page_cross_cycles;
           DUMMY_READ(address-0x100);
         }
         break;
@@ -172,10 +172,10 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
 
     address&=0xFFFF; // mask 16 bit
 
-    cpu->reg_PC+=opcode.bytes; // update program counter
-    cycles_passed+=opcode.cycles; // update cycles for this opcode
+    cpu->reg_PC+=ptOpcode->bytes; // update program counter
+    cycles_passed+=ptOpcode->cycles; // update cycles for this opcode
 
-    switch(opcode.operation) {
+    switch(ptOpcode->operation) {
       case OP_ADC:
         temp_value2=cpu->read(cpu->reference, address);
         temp_value=cpu->reg_A+temp_value2+cpu->status_C;
@@ -205,7 +205,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         RECALC_ZN(cpu->reg_A);
         break;
       case OP_ASL:
-        if (opcode.address_mode==ADR_ACCUMULATOR) {
+        if (ptOpcode->address_mode==ADR_ACCUMULATOR) {
           cpu->status_C= cpu->reg_A&0x80?1:0;
           cpu->reg_A= (cpu->reg_A&0x7F)<<1;
           RECALC_ZN(cpu->reg_A);
@@ -347,7 +347,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         RECALC_ZN(cpu->reg_Y);
         break;
       case OP_LSR:
-        if (opcode.address_mode==ADR_ACCUMULATOR) {
+        if (ptOpcode->address_mode==ADR_ACCUMULATOR) {
           cpu->status_C= cpu->reg_A&0x01?1:0;
           cpu->reg_A= cpu->reg_A>>1;
           RECALC_ZN(cpu->reg_A);
@@ -382,7 +382,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         SET_FLAGS((cpu->read(cpu->reference, 0x100|cpu->reg_SP)&0xEF)|0x20);
         break;
       case OP_ROL:
-        if (opcode.address_mode==ADR_ACCUMULATOR) {
+        if (ptOpcode->address_mode==ADR_ACCUMULATOR) {
           cpu->reg_A=(cpu->reg_A<<1)+cpu->status_C;
           cpu->status_C=cpu->reg_A&0x100?1:0;
           cpu->reg_A&=0xFF;
@@ -398,7 +398,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         }
         break;
       case OP_ROR:
-        if (opcode.address_mode==ADR_ACCUMULATOR) {
+        if (ptOpcode->address_mode==ADR_ACCUMULATOR) {
           cpu->reg_A|=cpu->status_C<<8;
           cpu->status_C=cpu->reg_A&0x01;
           cpu->reg_A>>=1;
