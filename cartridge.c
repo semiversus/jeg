@@ -57,10 +57,8 @@ int cartridge_setup(cartridge_t *cartridge, uint8_t *data, uint32_t size) {
   return 0;
 }
 
-
-
 // access cpu memory bus
-uint_fast8_t cartridge_read_prg(cartridge_t *cartridge, uint_fast16_t adr) {
+int cartridge_read_prg(cartridge_t *cartridge, int adr) {
   if (adr>=0x8000) {
     return cartridge->prg_memory[adr & cartridge->prg_adr_mask];
   }    
