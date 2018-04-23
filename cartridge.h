@@ -4,9 +4,9 @@
 #include <stdint.h>
 
 typedef struct cartridge_t {
-  int prg_size;
+  int prg_adr_mask;
   uint8_t *prg_memory;
-  int chr_size;
+  int chr_adr_mask;
   uint8_t *chr_memory;
   uint8_t ram_data[0x2000];
   uint8_t io_data[0x2000];

@@ -1,17 +1,13 @@
 #include "cpu6502.h"
 #include "cpu6502_opcodes.h"
 #include "cpu6502_debug.h"
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 
-#define SET_FLAGS(v) do{ \
-    cpu->status_C=(v)&0x01; \
-    cpu->status_Z=((v)>>1)&0x01; \
-    cpu->status_I=((v)>>2)&0x01; \
-    cpu->status_D=((v)>>3)&0x01; \
-    cpu->status_B=((v)>>4)&0x01; \
-    cpu->status_U=((v)>>5)&0x01; \
-    cpu->status_V=((v)>>6)&0x01; \
-    cpu->status_N=((v)>>7)&0x01; \
-  } while(0)
+
+#define SET_FLAGS(v)        do {cpu->chStatus = (v);} while(0)
+#define GET_FLAGS()         (cpu->chStatus)
 
 void cpu6502_init(cpu6502_t *cpu, void *reference, cpu6502_read_func_t read, cpu6502_write_func_t write) {
   cpu->reference=reference;
@@ -37,10 +33,6 @@ void cpu6502_reset(cpu6502_t *cpu) {
     cpu->status_N=(v)&0x80?1:0; \
   } while(0)
 
-#define GET_FLAGS() ((cpu->status_N<<7)|(cpu->status_V<<6)|(cpu->status_U<<5)| \
-  (cpu->status_B<<4)|(cpu->status_D<<3)|(cpu->status_I<<2)|(cpu->status_Z<<1)| \
-  cpu->status_C)
-
 #define PUSH(v) do { \
     cpu->write(cpu->reference, 0x100|cpu->reg_SP, (v)&0xFF); \
     cpu->reg_SP--; \
@@ -50,8 +42,10 @@ void cpu6502_reset(cpu6502_t *cpu) {
   } while(0)
 
 #define READ16(adr) (cpu->read(cpu->reference, adr)|(cpu->read(cpu->reference, (adr)+1)<<8))
-
-#define READ16BUG(adr) (cpu->read(cpu->reference, adr)|((cpu->read(cpu->reference,  ((adr)&0xFF00) + (((adr)+1)&0xFF ) )<<8)))
+#define READ16BUG(adr)  (   (cpu->read(     cpu->reference, adr))               \
+                        |   ((cpu->read(    cpu->reference,     ((adr)&0xFF00)  \
+                                                            +   (((adr)+1)&0xFF)\
+                                       )<<8)))
 
 #define PAGE_DIFFERS(a,b) (((a)&0xFF00)!=((b)&0xFF00))
 
@@ -74,7 +68,7 @@ void cpu6502_reset(cpu6502_t *cpu) {
 #endif
 
 int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
-  opcode_tbl_entry_t *ptOpcode;
+  const opcode_tbl_entry_t *ptOpcode;
   int cycles_passed; // cycles used in one iteration
   int address=0; // calculated address for memory interaction
   int temp_value, temp_value2; // temporary value used for calculation
@@ -287,16 +281,12 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         break;
       case OP_DEX:
         cpu->reg_X--;
-        if (cpu->reg_X<0) {
-          cpu->reg_X=0xFF;
-        }
+        cpu->reg_X &= 0xFF;
         RECALC_ZN(cpu->reg_X);
         break;
       case OP_DEY:
         cpu->reg_Y--;
-        if (cpu->reg_Y<0) {
-          cpu->reg_Y=0xFF;
-        }
+        cpu->reg_Y &= 0xFF;
         RECALC_ZN(cpu->reg_Y);
         break;
       case OP_EOR:
@@ -313,16 +303,12 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         break;
       case OP_INX:
         cpu->reg_X++;
-        if (cpu->reg_X>255) {
-          cpu->reg_X=0x00;
-        }
+        cpu->reg_X &= 0xFF;
         RECALC_ZN(cpu->reg_X);
         break;
       case OP_INY:
         cpu->reg_Y++;
-        if (cpu->reg_Y>255) {
-          cpu->reg_Y=0x00;
-        }
+        cpu->reg_Y &= 0xFF;
         RECALC_ZN(cpu->reg_Y);
         break;
       case OP_JMP:

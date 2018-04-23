@@ -4,60 +4,53 @@
 
 
 
-static int cpu6502_bus_read (void *ref, int address) {
-  nes_t* nes=(nes_t *)ref;
-  int value;
+static uint_fast8_t cpu6502_bus_read (void *ref, uint_fast16_t address) 
+{
+    nes_t* nes=(nes_t *)ref;
+    int value;
 
-  if (address<0x2000) {
-    return nes->ram_data[address & 0x7FF];
-  }
-  else if (address<0x4000) {
-    return ppu_read(&nes->ppu, 0x2000 + (address & 0x07));
-  }
-  else if (address==0x4014) {
-    return ppu_read(&nes->ppu, address);
-  }
-  else if (address==0x4016) {
-    value=nes->controller_shift_reg[0]&1;
-    nes->controller_shift_reg[0]=(nes->controller_shift_reg[0]>>1)|0x80;
-    return value;
-  }
-  else if (address==0x4017) {
-    value=nes->controller_shift_reg[1]&1;
-    nes->controller_shift_reg[1]=(nes->controller_shift_reg[1]>>1)|0x80;
-    return value;
-  }
-  else if (address>=0x6000) {
-    return cartridge_read_prg(&nes->cartridge, address);
-  }
-  else {
-    // TODO: log this event
+    if (address<0x2000) {
+        return nes->ram_data[address & 0x7FF];
+        
+    } else if (address>=0x6000) {
+        return cartridge_read_prg(&nes->cartridge, address);
+        
+    } else if (address<0x4000) {
+        return ppu_read(&nes->ppu, address);
+        
+    } else if (address==0x4016) {
+        value=nes->controller_shift_reg[0]&1;
+        nes->controller_shift_reg[0]=(nes->controller_shift_reg[0]>>1)|0x80;
+        return value;
+        
+    } else if (address==0x4017) {
+        value=nes->controller_shift_reg[1]&1;
+        nes->controller_shift_reg[1]=(nes->controller_shift_reg[1]>>1)|0x80;
+        return value;
+    }
     return 0;
-  }
 }
 
-static void cpu6502_bus_write (void *ref, int address, int value) {
-  nes_t* nes=(nes_t *)ref;
+static void cpu6502_bus_write (void *ref, uint_fast16_t address, uint_fast8_t value) 
+{
+    nes_t* nes=(nes_t *)ref;
 
-  if (address<0x2000) {
-    nes->ram_data[address & 0x7FF] = value;
-  }
-  else if (address<0x4000) {
-    ppu_write(&nes->ppu, 0x2000+ (address & 0x07), value);
-  }
-  else if (address==0x4014) {
-    ppu_write(&nes->ppu, address, value);
-  }
-  else if (address==0x4016 && value&0x01) {
-    nes->controller_shift_reg[0]=nes->controller_data[0];
-    nes->controller_shift_reg[1]=nes->controller_data[1];
-  }
-  else if (address>=0x6000) {
-    cartridge_write_prg(&nes->cartridge, address, value);
-  }
-  else {
-    // TODO: log this event
-  }
+    if (address<0x2000) {
+        nes->ram_data[address & 0x7FF] = value;
+        
+    } else if (address<0x4000) {
+        ppu_write(&nes->ppu, address, value);
+        
+    } else if (address==0x4014) {
+        ppu_dma_access(&nes->ppu, value);
+        
+    } else if (address==0x4016 && value&0x01) {
+        nes->controller_shift_reg[0]=nes->controller_data[0];
+        nes->controller_shift_reg[1]=nes->controller_data[1];
+        
+    } else if (address>=0x6000) {
+        cartridge_write_prg(&nes->cartridge, address, value);
+    } 
 }
 
 const int mirror_lookup[20]={0,0,1,1,0,1,0,1,0,0,0,0,1,1,1,1,0,1,2,3};
