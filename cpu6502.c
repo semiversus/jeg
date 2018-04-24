@@ -4,44 +4,34 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include "jeg_cfg.h"
 
 
 #define SET_FLAGS(v)        do {cpu->chStatus = (v);} while(0)
 #define GET_FLAGS()         (cpu->chStatus)
 
-void cpu6502_init(cpu6502_t *cpu, void *reference, cpu6502_read_func_t read, cpu6502_write_func_t write) {
-  cpu->reference=reference;
-  cpu->read=read;
-  cpu->write=write;
-}
+#define __BV(__N)           ((uint32_t)1<<(__N))
 
-void cpu6502_reset(cpu6502_t *cpu) {
-  // load program counter with address stored at 0xFFFC (low byte) and 0xFFFD (high byte)
-  cpu->reg_A=0;
-  cpu->reg_X=0;
-  cpu->reg_Y=0;
-  cpu->reg_PC=cpu->read(cpu->reference, 0xFFFC)+(cpu->read(cpu->reference, 0xFFFD)<<8);
-  cpu->reg_SP=0xFD; // reset stack pointer
-  SET_FLAGS(0x24); // set following status flags: UNUSED, INTERRUPT
-  cpu->cycle_number=0;
-  cpu->interrupt_pending=INTERRUPT_NONE;
-  cpu->stall_cycles=0;
-}
+#define RECALC_ZN(v)                                                            \
+            do{                                                                 \
+                cpu->status_Z=(v)?0:1;                                          \
+                cpu->status_N=(v)&0x80?1:0;                                     \
+            } while(0)
 
-#define RECALC_ZN(v) do{ \
-    cpu->status_Z=(v)?0:1; \
-    cpu->status_N=(v)&0x80?1:0; \
-  } while(0)
+#define PUSH(v)                                                                 \
+    do {                                                                        \
+        cpu->write(cpu->reference, 0x100|cpu->reg_SP, (v)&0xFF);                \
+        cpu->reg_SP--;                                                          \
+        if (cpu->reg_SP<0) {                                                    \
+            cpu->reg_SP=0xFF;                                                   \
+        }                                                                       \
+    } while(0)
 
-#define PUSH(v) do { \
-    cpu->write(cpu->reference, 0x100|cpu->reg_SP, (v)&0xFF); \
-    cpu->reg_SP--; \
-    if (cpu->reg_SP<0) { \
-      cpu->reg_SP=0xFF; \
-    } \
-  } while(0)
-
-#define READ16(adr) (cpu->read(cpu->reference, adr)|(cpu->read(cpu->reference, (adr)+1)<<8))
+#if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
+#define READ16(adr)     (cpu->readw(cpu->reference, adr))
+#else
+#define READ16(adr)     (cpu->read(cpu->reference, adr)|(cpu->read(cpu->reference, (adr)+1)<<8))
+#endif
 #define READ16BUG(adr)  (   (cpu->read(     cpu->reference, adr))               \
                         |   ((cpu->read(    cpu->reference,     ((adr)&0xFF00)  \
                                                             +   (((adr)+1)&0xFF)\
@@ -49,23 +39,85 @@ void cpu6502_reset(cpu6502_t *cpu) {
 
 #define PAGE_DIFFERS(a,b) (((a)&0xFF00)!=((b)&0xFF00))
 
-#define BRANCH(c) do { \
-    if (c) { \
-      cycles_passed+=PAGE_DIFFERS(cpu->reg_PC, address)?2:1; \
-      cpu->reg_PC=address; \
-    } \
-  } while(0)
+#define BRANCH(c)                                                               \
+    do {                                                                        \
+        if (c) {                                                                \
+            cycles_passed+=PAGE_DIFFERS(cpu->reg_PC, address)?2:1;              \
+            cpu->reg_PC=address;                                                \
+        }                                                                       \
+    } while(0)
 
-#define COMPARE(a, b) do { \
-    RECALC_ZN((a)-(b)); \
-    cpu->status_C= (a)>=(b)?1:0; \
-  } while(0)
+#define COMPARE(a, b)                                                           \
+    do {                                                                        \
+        RECALC_ZN((a)-(b));                                                     \
+        cpu->status_C= (a)>=(b)?1:0;                                            \
+    } while(0)
 
-#ifdef WITHOUT_DUMMY_READS
-  #define DUMMY_READ(adr)
+
+#if  JEG_USE_DUMMY_READS == ENABLED
+#   define DUMMY_READ(adr)
 #else
- #define DUMMY_READ(adr) cpu->read(cpu->reference, adr);
+#   define DUMMY_READ(adr) cpu->read(cpu->reference, adr);
 #endif
+
+#if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED ||                          \
+    JEG_USE_EXTRA_16BIT_BUS_ACCESS       == ENABLED
+bool cpu6502_init(cpu6502_t *ptCPU, cpu6502_cfg_t *ptCFG) 
+{
+    do {
+        if (NULL == ptCPU || NULL == ptCFG) {
+            break;
+        } else if (     (NULL == ptCFG->reference)
+                #if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED
+                    ||  (NULL == ptCFG->fnDMAGetSourceAddress)
+                #endif
+                #if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
+                    ||  (NULL == ptCFG->readw)
+                    ||  (NULL == ptCFG->writew)
+                #endif
+                    ||  (NULL == ptCFG->read)
+                    ||  (NULL == ptCFG->write)) {
+            break;
+        }
+    
+        ptCPU->reference =              ptCFG->reference;
+        ptCPU->read =                   ptCFG->read;
+        ptCPU->write =                  ptCFG->write;
+    #if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
+        ptCPU->readw =                  ptCFG->readw;
+        ptCPU->writew =                 ptCFG->writew;
+    #endif
+    #if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED
+        ptCPU->fnDMAGetSourceAddress =  ptCFG->fnDMAGetSourceAddress;
+    #endif
+        return true;
+    } while(false);
+
+    return false;
+}
+#else
+void cpu6502_init(cpu6502_t *cpu, void *reference, cpu6502_read_func_t read, cpu6502_write_func_t write) 
+{
+    cpu->reference = reference;
+    cpu->read=read;
+    cpu->write=write;
+}
+#endif
+
+void cpu6502_reset(cpu6502_t *cpu) {
+  // load program counter with address stored at 0xFFFC (low byte) and 0xFFFD (high byte)
+    cpu->reg_A = 0;
+    cpu->reg_X = 0;
+    cpu->reg_Y = 0;
+    
+    cpu->reg_PC = READ16(0xFFFC);
+    cpu->reg_SP = 0xFD; // reset stack pointer
+    SET_FLAGS(0x24); // set following status flags: UNUSED, INTERRUPT
+    cpu->cycle_number = 0;
+    cpu->interrupt_pending = INTERRUPT_NONE;
+    cpu->stall_cycles = 0;
+}
+
 
 int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
   const opcode_tbl_entry_t *ptOpcode;
@@ -107,28 +159,28 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         address=READ16(cpu->reg_PC+1);
         break;
       case ADR_ABSOLUTE_X:
-        address=READ16(cpu->reg_PC+1)+cpu->reg_X;
+        address = READ16(cpu->reg_PC+1)+cpu->reg_X;
         if (PAGE_DIFFERS(address-cpu->reg_X, address)) {
           cycles_passed+=ptOpcode->page_cross_cycles;
-          DUMMY_READ(address-0x100);
+          DUMMY_READ(address-0x100);                                            //!< dummy read
         }
         break;
       case ADR_ABSOLUTE_Y:
-        address=READ16(cpu->reg_PC+1)+cpu->reg_Y;
+        address = READ16(cpu->reg_PC+1)+cpu->reg_Y;
         if (PAGE_DIFFERS(address-cpu->reg_Y, address)) {
           cycles_passed+=ptOpcode->page_cross_cycles;
-          DUMMY_READ(address-0x100);
+          DUMMY_READ(address-0x100);                                            //!< dummy read
         }
         break;
       case ADR_ACCUMULATOR:
-        DUMMY_READ(cpu->reg_PC+1);
+        DUMMY_READ(cpu->reg_PC+1);                                              // dummy read
         address=0;
         break;
       case ADR_IMMEDIATE:
         address=cpu->reg_PC+1;
         break;
       case ADR_IMPLIED:
-        DUMMY_READ(cpu->reg_PC+1);
+        DUMMY_READ(cpu->reg_PC+1);                                              // dummy read
         address=0;
         break;
       case ADR_INDEXED_INDIRECT:
@@ -141,7 +193,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         address=READ16BUG(cpu->read(cpu->reference, cpu->reg_PC+1))+cpu->reg_Y;
         if (PAGE_DIFFERS(address-cpu->reg_Y, address)) {
           cycles_passed+=ptOpcode->page_cross_cycles;
-          DUMMY_READ(address-0x100);
+          DUMMY_READ(address-0x100);                                            // dummy read
         }
         break;
       case ADR_RELATIVE:
@@ -173,7 +225,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
       case OP_ADC:
         temp_value2=cpu->read(cpu->reference, address);
         temp_value=cpu->reg_A+temp_value2+cpu->status_C;
-        #ifndef WITHOUT_DECIMAL_MODE
+        #if JEG_USE_6502_DECIMAL_MODE == ENABLED
         if (cpu->status_D) { // bcd mode
           if (( (cpu->reg_A&0x0F)+(temp_value2&0x0F)+cpu->status_C)>9) {
             temp_value+=6;
@@ -188,7 +240,7 @@ int cpu6502_run(cpu6502_t *cpu, int cycles_to_run) {
         #endif  
           cpu->status_C=temp_value>0xFF?1:0;
           cpu->status_V=(~(cpu->reg_A^temp_value2))&(cpu->reg_A^temp_value)&0x80?1:0;
-        #ifndef WITHOUT_DECIMAL_MODE
+        #if JEG_USE_6502_DECIMAL_MODE == ENABLED
         }
         #endif  
         cpu->reg_A=temp_value&0xFF;
