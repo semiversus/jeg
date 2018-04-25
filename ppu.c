@@ -72,7 +72,6 @@ void ppu_setup_video(ppu_t *ppu, uint8_t *video_frame_data)
 }
 #endif
 
-
 void ppu_reset(ppu_t *ppu) 
 {
     ppu->last_cycle_number=0;
@@ -153,8 +152,6 @@ void ppu_dma_access(ppu_t *ppu, uint_fast8_t chData)
 
 void ppu_write(ppu_t *ppu, uint_fast16_t hwAddress, uint_fast8_t chData) 
 {
-    int address_temp;
-
     ppu->register_data = chData;
 
     switch (hwAddress & 7) {

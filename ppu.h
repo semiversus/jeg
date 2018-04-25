@@ -97,7 +97,7 @@ extern void ppu_write(ppu_t *ppu, uint_fast16_t hwAddress, uint_fast8_t chData);
 //! \bridef dedicated PPU DMA access 
 extern void ppu_dma_access(ppu_t *ppu, uint_fast8_t chData);
 
-extern int ppu_update(ppu_t *ppu); // update ppu to current cpu cycle, return number of cpu cycles to next frame
+extern int_fast32_t ppu_update(ppu_t *ppu); // update ppu to current cpu cycle, return number of cpu cycles to next frame
 
 #if JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE == DISABLED
 extern void ppu_setup_video(ppu_t *ppu, uint8_t *video_frame_data);
