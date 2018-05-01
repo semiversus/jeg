@@ -139,10 +139,12 @@ bool nes_init(nes_t *ptNES, nes_cfg_t *ptCFG)
 void nes_init(nes_t *ptNES)
 #endif
 { 
- 
+ #if JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE == ENABLED
+ bool bResult = false;
+ #endif
     do {
     #if JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE == ENABLED
-        bool bResult = false;
+        
         if (    NULL == ptNES 
             ||  NULL == ptCFG) {
             break;
