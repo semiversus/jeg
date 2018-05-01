@@ -49,7 +49,6 @@ bool ppu_init(ppu_t *ppu, ppu_cfg_t *ptCFG)
     #endif
         ppu_reset(ppu);
             
-        
         bResult = true;
     } while(false);
     return bResult;
@@ -72,7 +71,6 @@ void ppu_setup_video(ppu_t *ppu, uint8_t *video_frame_data)
 }
 #endif
 
-
 void ppu_reset(ppu_t *ppu) 
 {
     ppu->last_cycle_number=0;
@@ -85,7 +83,7 @@ void ppu_reset(ppu_t *ppu)
     ppu->oam_address=0;
     ppu->register_data=0;
     ppu->name_table_byte=0;
-    
+
 #if JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE == DISABLED
     if (NULL != ppu->video_frame_data) {
         memset(ppu->video_frame_data, 0, 256*240);
@@ -154,8 +152,6 @@ void ppu_dma_access(ppu_t *ppu, uint_fast8_t chData)
 
 void ppu_write(ppu_t *ppu, uint_fast16_t hwAddress, uint_fast8_t chData) 
 {
-    int address_temp;
-
     ppu->register_data = chData;
 
     switch (hwAddress & 7) {
@@ -558,13 +554,36 @@ int_fast32_t ppu_update(ppu_t *ppu)
             // sprite logic
             if (257 == ppu->cycle) {
                 if (VISIBLE_LINE) {
+            #if JEG_USE_OPTIMIZED_SPRITE_PROCESSING == ENABLED
                     /*! fetch all the sprite informations on current scanline */
                     ppu->sprite_count = fetch_sprite_info_on_specified_line(ppu, ppu->scanline);
                     
                 } else if (240 == ppu->scanline) {
                     //! reset sprite Y order list counter
                     ppu->SpriteYOrderList.chCurrent = 0;
-                    
+            #else
+                    // evaluate sprite
+                    int_fast32_t count=0;
+                    for(int_fast32_t j = 0; j < 64; j++) {
+                        int_fast32_t row = ppu->scanline-ppu->oam_data[j * 4];
+                        if (    (row < 0)
+                            ||  (row >= ((ppu->ppuctrl & PPUCTRL_SPRITE_SIZE) ? 16 : 8))) {
+                            continue;
+                        }
+                        if (count < 8) {
+                            ppu->sprite_patterns[count]   = fetch_sprite_pattern(ppu, j, row);
+                            ppu->sprite_positions[count]  = ppu->oam_data[j * 4 + 3];
+                            ppu->sprite_priorities[count] = (ppu->oam_data[j * 4 + 2] >> 5) & 0x01;
+                            ppu->sprite_indicies[count]   = j;
+                        }
+                        count++;
+                    }
+                    if (count > 8) {
+                        count = 8;
+                        ppu->ppustatus |= PPUSTATUS_SPRITE_OVERFLOW;
+                    }
+                    ppu->sprite_count = count;
+            #endif
                 } else {
                     ppu->sprite_count = 0;
                 }

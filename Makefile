@@ -31,4 +31,4 @@ run_test_roms: test_roms
 	cd test/nes_roms && ../../test_roms -p test.key
 
 clean:
-	rm jeg jeg.exe test_klaus2m5 test/klaus2m5/rom.inc test_roms -rf
+	rm jeg jeg.exe benchmark test_klaus2m5 test/klaus2m5/rom.inc test_roms -rf
