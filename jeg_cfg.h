@@ -56,7 +56,7 @@
 /*! \brief This switch is used to enable optimized sprite processing
  */
 #ifndef JEG_USE_OPTIMIZED_SPRITE_PROCESSING
-#   define JEG_USE_OPTIMIZED_SPRITE_PROCESSING         DISABLED
+#   define JEG_USE_OPTIMIZED_SPRITE_PROCESSING         ENABLED
 #endif
 
 
