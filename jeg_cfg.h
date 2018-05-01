@@ -59,7 +59,6 @@
 #   define JEG_USE_OPTIMIZED_SPRITE_PROCESSING         ENABLED
 #endif
 
-
 /*! \brief This macro is used to control the maximum allowed sprites on a single
  *!        scanline. By default, it's 8 which is the hardware limitation, but we
  *!        can increase it to up until 64 (which is also the maximum number of 
