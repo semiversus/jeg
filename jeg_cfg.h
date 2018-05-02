@@ -69,4 +69,11 @@
 #   define JEG_MAX_ALLOWED_SPRITES_ON_SINGLE_SCANLINE  8
 #endif
 
+/*! \brief This switch is used to enable/disable a dedicated frame ready flag,
+ *!        with which unnecessary frame refresh will be prevented.
+ */
+#ifndef JEG_USE_FRAME_SYNC_UP_FLAG
+#   define JEG_USE_FRAME_SYNC_UP_FLAG                   ENABLED
+#endif
+
 #endif
