@@ -49,6 +49,7 @@ bool ppu_init(ppu_t *ppu, ppu_cfg_t *ptCFG)
     #endif
         ppu_reset(ppu);
             
+        
         bResult = true;
     } while(false);
     return bResult;
@@ -71,6 +72,7 @@ void ppu_setup_video(ppu_t *ppu, uint8_t *video_frame_data)
 }
 #endif
 
+
 void ppu_reset(ppu_t *ppu) 
 {
     ppu->last_cycle_number=0;
@@ -83,7 +85,7 @@ void ppu_reset(ppu_t *ppu)
     ppu->oam_address=0;
     ppu->register_data=0;
     ppu->name_table_byte=0;
-
+    
 #if JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE == DISABLED
     if (NULL != ppu->video_frame_data) {
         memset(ppu->video_frame_data, 0, 256*240);
@@ -152,6 +154,8 @@ void ppu_dma_access(ppu_t *ppu, uint_fast8_t chData)
 
 void ppu_write(ppu_t *ppu, uint_fast16_t hwAddress, uint_fast8_t chData) 
 {
+    int address_temp;
+
     ppu->register_data = chData;
 
     switch (hwAddress & 7) {
@@ -256,7 +260,7 @@ uint32_t fetch_sprite_pattern(ppu_t *ppu, int i, int row)
     return data;
 }
 
-
+#if JEG_USE_OPTIMIZED_SPRITE_PROCESSING == ENABLED
 static void sort_sprite_order_list(ppu_t *ptPPU)
 {
     //! a very simple & stupid sorting algorithm 
@@ -307,12 +311,14 @@ static void sort_sprite_order_list(ppu_t *ptPPU)
     ptPPU->SpriteYOrderList.chVisibleCount = chIndex;
     ptPPU->SpriteYOrderList.chCurrent = 0;
 }
+#endif
 
 static inline uint_fast8_t fetch_sprite_info_on_specified_line(ppu_t *ptPPU, uint_fast32_t nScanLine)
 {
     uint_fast8_t chCount = 0;
     uint_fast8_t chSpriteSize = ((ptPPU->ppuctrl & PPUCTRL_SPRITE_SIZE) ? 16 : 8);
 
+#if JEG_USE_OPTIMIZED_SPRITE_PROCESSING == ENABLED
     //! initialise sprite Y order sort list
     sort_sprite_order_list(ptPPU);
 
@@ -338,6 +344,23 @@ static inline uint_fast8_t fetch_sprite_info_on_specified_line(ppu_t *ptPPU, uin
             break;
         }
     }
+#else
+    // evaluate sprite
+    for(int_fast32_t j = 0; j < 64; j++) {
+        int_fast32_t row = ptPPU->scanline-ptPPU->SpriteInfo[j].chY;
+        if (    (row < 0)
+            ||  (row >= chSpriteSize)) {
+            continue;
+        }
+        if (chCount < JEG_MAX_ALLOWED_SPRITES_ON_SINGLE_SCANLINE) {
+            ptPPU->sprite_patterns[chCount]   = fetch_sprite_pattern(ptPPU, j, row);
+            ptPPU->sprite_positions[chCount]  = ptPPU->SpriteInfo[j].chPosition;
+            ptPPU->sprite_priorities[chCount] = ptPPU->SpriteInfo[j].Attributes.Priority;
+            ptPPU->sprite_indicies[chCount]   = j;
+            chCount++;
+        }
+    }
+#endif
 
     if (chCount > 8) {
         ptPPU->ppustatus |= PPUSTATUS_SPRITE_OVERFLOW;
@@ -467,8 +490,8 @@ int_fast32_t ppu_update(ppu_t *ppu)
                                                             |   ((ppu->v >> 4) & 0x38)
                                                             |   ((ppu->v >> 2) & 0x07))
                                                             
-                                               ) >> (       ( (ppu->v>>4) & 4) 
-                                                        |   (ppu->v&2)) 
+                                               ) >> (   ( (ppu->v>>4) & 4) 
+                                                    |   (  ppu->v&2)) 
                                   ) & 3 
                               ) << 2;
                         break;
@@ -478,7 +501,7 @@ int_fast32_t ppu_update(ppu_t *ppu)
                                     ppu->nes,    
                                     0x1000*((ppu->ppuctrl & PPUCTRL_BACKGROUND_TABLE) ? 1 : 0)
                                 +   ppu->name_table_byte*16
-                                +   ((ppu->v>>12)&7)
+                                +   ppu->tVAddress.TileYOffsite
                             );
                         break;
                         
@@ -487,7 +510,7 @@ int_fast32_t ppu_update(ppu_t *ppu)
                                     ppu->nes, 
                                     0x1000 * ((ppu->ppuctrl & PPUCTRL_BACKGROUND_TABLE) ? 1 : 0)
                                 +   ppu->name_table_byte*16
-                                +   ((ppu->v >> 12) & 7) + 8
+                                +   ppu->tVAddress.TileYOffsite + 8
                             );
                         break;
                         
@@ -506,47 +529,69 @@ int_fast32_t ppu_update(ppu_t *ppu)
                 }
             }
             
+            
             if (   PRE_LINE 
                 && ppu->cycle >= 280 
                 && ppu->cycle <= 304) {
                 
+                /* equivalent logic
+                ppu->tVAddress.YToggleBit = ppu->tTempVAddress.YToggleBit;
+                ppu->tVAddress.YScroll = ppu->tTempVAddress.YScroll;
+                ppu->tVAddress.TileYOffsite = ppu->tTempVAddress.TileYOffsite;
+                */
                 ppu->v = (ppu->v & 0x841F) | (ppu->t & 0x7BE0);                 //!< ppu copy y
             }
             
             if (RENDER_LINE) {
+                /*
+                         (0,0)     (256,0)     (511,0)
+                           +-----------+-----------+
+                           |           |           |
+                           |           |           |
+                           |   $2000   |   $2400   |
+                           |           |           |
+                           |           |           |
+                    (0,240)+-----------+-----------+(511,240)
+                           |           |           |
+                           |           |           |
+                           |   $2800   |   $2C00   |
+                           |           |           |
+                           |           |           |
+                           +-----------+-----------+
+                         (0,479)   (256,479)   (511,479)
+                         
+                     The start location of the display window is determined 
+                     by (X,Y) 
+                        where X = (t.XScroll | t.XToggleBit) << 3 + ppu->x
+                              Y = (t.YScroll | t.YToggleBit) << 3 + ppu->tVAddress.TileYOffsite
+                */
+            
                 if (    FETCH_CYCLE 
                     &&  ((ppu->cycle & 0x07) == 0) ) {
-                    //! increment x
-                    if ((ppu->v & 0x001F) == 31) {                              //!< wraps from 31 to 0, bit 10 is switched
-                        ppu->v &= 0xFFE0;
-                        ppu->v ^= _BV(10);
-                    } else {
-                        ppu->v++;
-                    }
+                        
+                    if (ppu->tVAddress.XScroll == 31) {
+                        ppu->tVAddress.XToggleBit ^= 1;                         //! switch to another name table horizontally 
+                    } 
+                    ppu->tVAddress.XScroll++;
                 }
                 
                 if (256 == ppu->cycle) {
                 
-                    //! increment y
-                    if ((ppu->v & 0x7000) != 0x7000) {
-                        ppu->v += 0x1000;
-                    } else {
-                        ppu->v &= 0x8FFF;
-                        int_fast32_t y = (ppu->v & 0x3E0)>>5;
-                        
-                        switch(y) {
-                            case 29:
-                                ppu->v ^= _BV(11);
-                            case 31:                                            //!< fallthrough from case 29
-                                y = 0;
-                                break;
-                            default:
-                                y++;
+                    if (ppu->tVAddress.TileYOffsite == 7) {
+                        if (ppu->tVAddress.YScroll == 29) {
+                            ppu->tVAddress.YToggleBit ^= 1;                     //! switch to another name table vertically 
+                            ppu->tVAddress.YScroll = 0;
+                        } else {
+                            ppu->tVAddress.YScroll++;
                         }
-                        ppu->v = (ppu->v & 0xFC1F) | (y<<5);
-                    }
+                    }   
+                    ppu->tVAddress.TileYOffsite++;
+
                 } else if (ppu->cycle == 257) {
-                    
+                    /* equivalent logic
+                    ppu->tVAddress.XScroll = ppu->tTempVAddress.XScroll;
+                    ppu->tVAddress.XToggleBit = ppu->tTempVAddress.XToggleBit;
+                    */
                     ppu->v = (ppu->v & 0xFBE0) | (ppu->t & 0x41F);              //!< copy x
                 }
             }
@@ -554,36 +599,13 @@ int_fast32_t ppu_update(ppu_t *ppu)
             // sprite logic
             if (257 == ppu->cycle) {
                 if (VISIBLE_LINE) {
-            #if JEG_USE_OPTIMIZED_SPRITE_PROCESSING == ENABLED
                     /*! fetch all the sprite informations on current scanline */
                     ppu->sprite_count = fetch_sprite_info_on_specified_line(ppu, ppu->scanline);
                     
                 } else if (240 == ppu->scanline) {
                     //! reset sprite Y order list counter
                     ppu->SpriteYOrderList.chCurrent = 0;
-            #else
-                    // evaluate sprite
-                    int_fast32_t count=0;
-                    for(int_fast32_t j = 0; j < 64; j++) {
-                        int_fast32_t row = ppu->scanline-ppu->oam_data[j * 4];
-                        if (    (row < 0)
-                            ||  (row >= ((ppu->ppuctrl & PPUCTRL_SPRITE_SIZE) ? 16 : 8))) {
-                            continue;
-                        }
-                        if (count < 8) {
-                            ppu->sprite_patterns[count]   = fetch_sprite_pattern(ppu, j, row);
-                            ppu->sprite_positions[count]  = ppu->oam_data[j * 4 + 3];
-                            ppu->sprite_priorities[count] = (ppu->oam_data[j * 4 + 2] >> 5) & 0x01;
-                            ppu->sprite_indicies[count]   = j;
-                        }
-                        count++;
-                    }
-                    if (count > 8) {
-                        count = 8;
-                        ppu->ppustatus |= PPUSTATUS_SPRITE_OVERFLOW;
-                    }
-                    ppu->sprite_count = count;
-            #endif
+                    
                 } else {
                     ppu->sprite_count = 0;
                 }
@@ -592,6 +614,10 @@ int_fast32_t ppu_update(ppu_t *ppu)
 
         if (241 == ppu->scanline && 1 == ppu->cycle) {
             ppu->ppustatus |= PPUSTATUS_VBLANK;
+            
+        #if JEG_USE_FRAME_SYNC_UP_FLAG  == ENABLED
+            ppu->bFrameReady = true;
+        #endif
             if (ppu->ppuctrl & PPUCTRL_NMI) {
                 cpu6502_trigger_interrupt(&ppu->nes->cpu, INTERRUPT_NMI);
             }
@@ -608,3 +634,11 @@ int_fast32_t ppu_update(ppu_t *ppu)
     return (341*262-((ppu->scanline+21)%262)*341-ppu->cycle)/3+1;
 }
 
+#if JEG_USE_FRAME_SYNC_UP_FLAG  == ENABLED
+bool ppu_is_frame_ready(ppu_t *ptPPU)
+{
+    bool bResult = ptPPU->bFrameReady;
+    ptPPU->bFrameReady = false;
+    return bResult;
+}
+#endif
