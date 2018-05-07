@@ -154,8 +154,6 @@ void ppu_dma_access(ppu_t *ppu, uint_fast8_t chData)
 
 void ppu_write(ppu_t *ppu, uint_fast16_t hwAddress, uint_fast8_t chData) 
 {
-    int address_temp;
-
     ppu->register_data = chData;
 
     switch (hwAddress & 7) {
