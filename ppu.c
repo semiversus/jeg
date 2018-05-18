@@ -154,8 +154,8 @@ void ppu_dma_access(ppu_t *ppu, uint_fast8_t chData)
 {
     uint_fast16_t address_temp = chData << 8;
 
-    assert(0 == ppu->oam_address);
 #if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED
+    assert(0 == ppu->oam_address); // TODO: this case should be handled!
     uint8_t *pchSrc = ppu->nes->cpu.fnDMAGetSourceAddress(ppu->nes, address_temp);
 #   if JEG_USE_OPTIMIZED_SPRITE_PROCESSING == ENABLED
     uint8_t *pchCheck = pchSrc;
@@ -181,8 +181,7 @@ void ppu_dma_access(ppu_t *ppu, uint_fast8_t chData)
             }
         }
 #   endif
-        //ppu->oam_data[ppu->oam_address+i]=v;
-        ppu->tSpriteTable.chBuffer[i]=v;
+        ppu->tSpriteTable.chBuffer[(ppu->oam_address+i) & 0xFF]=v;
     }
 #endif
     ppu->nes->cpu.stall_cycles += 513;
