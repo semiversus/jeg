@@ -154,8 +154,8 @@ void ppu_dma_access(ppu_t *ppu, uint_fast8_t chData)
 {
     uint_fast16_t address_temp = chData << 8;
 
-    assert(0 == ppu->oam_address);
 #if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED
+    assert(0 == ppu->oam_address); // TODO: this case should be handled!
     uint8_t *pchSrc = ppu->nes->cpu.fnDMAGetSourceAddress(ppu->nes, address_temp);
 #   if JEG_USE_OPTIMIZED_SPRITE_PROCESSING == ENABLED
     uint8_t *pchCheck = pchSrc;
@@ -181,8 +181,7 @@ void ppu_dma_access(ppu_t *ppu, uint_fast8_t chData)
             }
         }
 #   endif
-        //ppu->oam_data[ppu->oam_address+i]=v;
-        ppu->tSpriteTable.chBuffer[i]=v;
+        ppu->tSpriteTable.chBuffer[(ppu->oam_address+i) & 0xFF]=v;
     }
 #endif
     ppu->nes->cpu.stall_cycles += 513;
@@ -393,15 +392,15 @@ static inline uint_fast8_t fetch_sprite_info_on_specified_line(ppu_t *ptPPU, uin
 #else
     // evaluate sprite
     for(int_fast32_t j = 0; j < 64; j++) {
-        int_fast32_t row = ptPPU->scanline-ptPPU->SpriteInfo[j].chY;
+        int_fast32_t row = ptPPU->scanline-ptPPU->tSpriteTable.SpriteInfo[j].chY;
         if (    (row < 0)
             ||  (row >= chSpriteSize)) {
             continue;
         }
         if (chCount < JEG_MAX_ALLOWED_SPRITES_ON_SINGLE_SCANLINE) {
-            ptPPU->sprite_patterns[chCount]   = fetch_sprite_pattern(ptPPU, j, row);
-            ptPPU->sprite_positions[chCount]  = ptPPU->SpriteInfo[j].chPosition;
-            ptPPU->sprite_priorities[chCount] = ptPPU->SpriteInfo[j].Attributes.Priority;
+            ptPPU->sprite_patterns[chCount]   = fetch_sprite_pattern(ptPPU, ptPPU->tSpriteTable.SpriteInfo + j, row);
+            ptPPU->sprite_positions[chCount]  = ptPPU->tSpriteTable.SpriteInfo[j].chPosition;
+            ptPPU->sprite_priorities[chCount] = ptPPU->tSpriteTable.SpriteInfo[j].Attributes.Priority;
             ptPPU->sprite_indicies[chCount]   = j;
             chCount++;
         }
