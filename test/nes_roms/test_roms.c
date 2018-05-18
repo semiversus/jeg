@@ -203,6 +203,7 @@ int main(int argc, char* argv[]) {
           break;
         case 'L': // load rom
           load_rom(&nes_console, line+1);
+          printf("Testing rom %s\n", line+1);
           break;
         case 'R': // reset
           nes_reset(&nes_console);
