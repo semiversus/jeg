@@ -176,7 +176,7 @@ void ppu_dma_access(ppu_t *ppu, uint_fast8_t chData)
         int v=ppu->nes->cpu.read(ppu->nes, address_temp++);
 #   if JEG_USE_OPTIMIZED_SPRITE_PROCESSING == ENABLED
         if (!(i & 0x03)) {
-            if (ppu->tSpriteTable.chBuffer[i] != v) {
+            if (ppu->tSpriteTable.chBuffer[(ppu->oam_address+i) & 0xFF] != v) {
                 ppu->bOAMUpdated = true;
             }
         }
