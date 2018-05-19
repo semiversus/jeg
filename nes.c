@@ -143,10 +143,9 @@ static void write_name_attribute_table(nes_t *ptNES, uint_fast16_t hwAddress, ui
     name_attribute_table_t *ptTable = &(ptNES->ppu.tNameAttributeTable[chPhysicTableIndex]);
     
     hwAddress &= 0x3FF;
-    ptTable->chBuffer[hwAddress] = chData;
-    
 #if JEG_USE_BACKGROUND_BUFFERING == ENABLED
     uint8_t chOldData = ptTable->chBuffer[hwAddress];
+    ptTable->chBuffer[hwAddress] = chData;
 
     if (chOldData == chData) {
         return ;
@@ -237,7 +236,8 @@ static void write_name_attribute_table(nes_t *ptNES, uint_fast16_t hwAddress, ui
         }
     
     } while(0);
-
+#else
+    ptTable->chBuffer[hwAddress] = chData;
 #endif
 }
 
