@@ -1,7 +1,7 @@
 #include "ppu.h"
 #include "nes.h"
 
-#include ".\common.h"
+#include "common.h"
 #include "jeg_cfg.h"
 
 //! \name PPU Control Register bit mask
@@ -433,7 +433,7 @@ static void fetch_background_tile_info(ppu_t *ptPPU)
     ptPPU->tile_data <<= 4;
     
     uint_fast8_t chTableIndex = find_name_attribute_table_index(
-                                        ptPPU->nes->cartridge.mirror, 
+                                        ptPPU->nes->cartridge.chMirror, 
                                         ptPPU->v & 0x0FFF);
     name_attribute_table_t *ptTable = &(ptPPU->tNameAttributeTable[chTableIndex]);
     
