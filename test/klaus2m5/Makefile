@@ -1,7 +1,7 @@
 CPU_SRC_PATH=../../src/cpu/
 
 INCLUDE_PATHS_CPU=. ..
-SRCS_CPU=cpu6502_opcodes.c cpu6502.c
+SRCS_CPU=cpu6502.c
 
 # target specific
 SRCS=$(addprefix $(CPU_SRC_PATH), $(SRCS_CPU)) system.c

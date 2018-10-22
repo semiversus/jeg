@@ -1,5 +1,4 @@
 #include "cpu6502_debug.h"
-#include "cpu6502_opcodes.h"
 #include "cpu6502.h"
 #include <stdio.h>
 

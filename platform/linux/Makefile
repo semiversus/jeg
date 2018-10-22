@@ -1,7 +1,7 @@
 NES_SRC_PATH=../../src/
 
 INCLUDE_PATHS_NES=cartridge cpu ppu .
-SRCS_NES=cartridge/cartridge.c cpu/cpu6502_opcodes.c cpu/cpu6502.c ppu/ppu.c nes.c
+SRCS_NES=cartridge/cartridge.c cpu/cpu6502.c ppu/ppu.c nes.c
 
 # target specific
 SRCS=$(addprefix $(NES_SRC_PATH), $(SRCS_NES)) ui.c
