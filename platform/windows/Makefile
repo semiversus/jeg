@@ -12,5 +12,3 @@ jeg.exe: $(SRCS)
 
 clean:
 	rm jeg.exe -rf
-
-.PHONY: clean

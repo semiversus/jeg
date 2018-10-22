@@ -12,5 +12,3 @@ benchmark: $(SRCS)
 
 clean:
 	rm benchmark -rf
-
-.PHONY: clean

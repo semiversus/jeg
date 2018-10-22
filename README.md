@@ -1,10 +1,16 @@
 # JEG Emulation Gathering
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Platform independent catch-up emulation framework with Nintendo NES as main target.
+The main goal is to build a NES emulator with developers as target audience. Porting the emulator
+to various embedded platforms is made possible by having a clean abstraction of hardware dependent
+components. Whether your need is to have hundreds of instances running in parallel or replace audio
+and video components for experiments - JEG will be your friend.
 
-## Dependencies
-* C compiler (C99)
+## Features
+* Platform independent
+* Cycle catch-up emulator design
+* Plain C (C99) implementation
+* Unit tested
 
 ## What's working
 * CPU 6502 *completed*

@@ -12,5 +12,3 @@ jeg:
 
 clean:
 	rm jeg -rf
-
-.PHONY: clean
