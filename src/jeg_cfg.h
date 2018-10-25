@@ -23,15 +23,15 @@
  *----------------------------------------------------------------------------*/
 
 /*! \brief This switch is used to use a dedicated draw pixel interface (callback)
- *!        to enable further pixel based optimisation, such as dirty-matrix which 
+ *!        to enable further pixel based optimisation, such as dirty-matrix which
  *!        highly relys on the tracking of individual pixel drawing behaviour.
  */
 #ifndef JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE
 #   define JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE       DISABLED
 #endif
 
-/*! \brief This switch is used to fetch the source address of the target memory 
- *!        and use memcpy to replace the byte-by-byte bus_read access. 
+/*! \brief This switch is used to fetch the source address of the target memory
+ *!        and use memcpy to replace the byte-by-byte bus_read access.
  */
 #ifndef JEG_USE_DMA_MEMORY_COPY_ACCELERATION
 #   define JEG_USE_DMA_MEMORY_COPY_ACCELERATION        DISABLED
@@ -52,13 +52,6 @@
 #   define JEG_USE_DUMMY_READS                         DISABLED
 #endif
 
-/*! \brief This switch is used to enable the 6502 decimal mode which is not 
- *!        supported in NES
- */
-#ifndef JEG_USE_6502_DECIMAL_MODE
-#   define JEG_USE_6502_DECIMAL_MODE                   DISABLED
-#endif
-
 /*! \brief This switch is used to enable optimized sprite processing
  */
 #ifndef JEG_USE_OPTIMIZED_SPRITE_PROCESSING
@@ -67,11 +60,11 @@
 
 /*! \brief This macro is used to control the maximum allowed sprites on a single
  *!        scanline. By default, it's 8 which is the hardware limitation, but we
- *!        can increase it to up until 64 (which is also the maximum number of 
+ *!        can increase it to up until 64 (which is also the maximum number of
  *!        sprites in a PPU) to improve the display quality, e.g. City Tank, saying
  *!        solving the blinking-sprites issue
  */
-#ifndef JEG_MAX_ALLOWED_SPRITES_ON_SINGLE_SCANLINE  
+#ifndef JEG_MAX_ALLOWED_SPRITES_ON_SINGLE_SCANLINE
 #   define JEG_MAX_ALLOWED_SPRITES_ON_SINGLE_SCANLINE  8
 #endif
 
@@ -87,7 +80,7 @@
  *!        caused by wrong mirroring (buffer overflow). Disable this feature could
  *!        save 2KByte memories.
  */
-#ifndef JEG_USE_4_PHYSICAL_NAME_ATTRIBUTE_TABLES        
+#ifndef JEG_USE_4_PHYSICAL_NAME_ATTRIBUTE_TABLES
 #   define JEG_USE_4_PHYSICAL_NAME_ATTRIBUTE_TABLES     DISABLED
 #endif
 
@@ -97,13 +90,13 @@
 
 /*! \brief This switch is used to add a background buffer for each name table,
  *!        so you don't need to re-draw the background every time
- */ 
+ */
 #ifndef JEG_USE_BACKGROUND_BUFFERING
 #   define  JEG_USE_BACKGROUND_BUFFERING                ENABLED
 #endif
 
-/*! \brief This switch is used to add a buffer for sprite rendering, so you don't 
- *!        need to check the sprite status for each scanline. 
+/*! \brief This switch is used to add a buffer for sprite rendering, so you don't
+ *!        need to check the sprite status for each scanline.
  */
 #ifndef JEG_USE_SPRITE_BUFFER
 #   define  JEG_USE_SPRITE_BUFFER                       DISABLED

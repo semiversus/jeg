@@ -12,7 +12,7 @@ run: klaus2m5_bin
 
 klaus2m5_bin: $(SRCS)
 	cat 6502_functional_test.bin|xxd -i >rom.inc
-	$(CC) $(SRCS) $(addprefix -I,$(INCLUDE_PATHS)) -o $@ -O3 -DJEG_USE_6502_DECIMAL_MODE=1
+	$(CC) $(SRCS) $(addprefix -I,$(INCLUDE_PATHS)) -o $@ -O3 -DJEG_CPU_WITH_BCD_MODE=1
 
 clean:
 	rm klaus2m5_bin rom.inc -rf

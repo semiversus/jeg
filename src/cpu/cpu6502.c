@@ -485,7 +485,7 @@ uint_fast32_t cpu6502_run(cpu6502_t *cpu, int_fast32_t cycles_to_run)
       case OP_ADC:
         temp_value2=cpu->read(cpu->reference, address);
         temp_value=cpu->reg_A+temp_value2+cpu->status_C;
-        #if JEG_USE_6502_DECIMAL_MODE == ENABLED
+        #if JEG_CPU_WITH_BCD_MODE
         if (cpu->status_D) { // bcd mode
           if (( (cpu->reg_A&0x0F)+(temp_value2&0x0F)+cpu->status_C)>9) {
             temp_value+=6;
@@ -500,7 +500,7 @@ uint_fast32_t cpu6502_run(cpu6502_t *cpu, int_fast32_t cycles_to_run)
         #endif
           cpu->status_C=temp_value>0xFF?1:0;
           cpu->status_V=(~(cpu->reg_A^temp_value2))&(cpu->reg_A^temp_value)&0x80?1:0;
-        #if JEG_USE_6502_DECIMAL_MODE == ENABLED
+        #if JEG_CPU_WITH_BCD_MODE
         }
         #endif
         cpu->reg_A=temp_value&0xFF;
@@ -731,7 +731,7 @@ uint_fast32_t cpu6502_run(cpu6502_t *cpu, int_fast32_t cycles_to_run)
         temp_value=(cpu->reg_A-temp_value2-(1-cpu->status_C))&0xFFFF;
         RECALC_ZN(temp_value&0xFF);
         cpu->status_V=(cpu->reg_A^temp_value2)&(cpu->reg_A^temp_value)&0x80?1:0;
-        #ifndef WITHOUT_DECIMAL_MODE
+        #if JEG_CPU_WITH_BCD_MODE
         if (cpu->status_D) { // bcd mode
           if ( ((cpu->reg_A&0x0F)-(1-cpu->status_C))<(temp_value2&0x0F)) {
             temp_value-=6;
@@ -741,12 +741,8 @@ uint_fast32_t cpu6502_run(cpu6502_t *cpu, int_fast32_t cycles_to_run)
           }
           cpu->status_C=temp_value<0x100?1:0;
         }
-        else {
         #endif
-          cpu->status_C=temp_value<0x100?1:0;
-        #ifndef WITHOUT_DECIMAL_MODE
-        }
-        #endif
+        cpu->status_C=temp_value<0x100?1:0;
         cpu->reg_A=temp_value&0xFF;
         break;
       case OP_SEC:
