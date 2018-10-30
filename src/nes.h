@@ -1,16 +1,28 @@
 #ifndef NES_H
 #define NES_H
 
-#include "ppu.h"
 #include "cpu6502.h"
 #include "cartridge.h"
 #include "common.h"
 #include "jeg_cfg.h"
 
+struct nes_t;
+
+typedef uint_fast8_t ppu_read_func_t (struct nes_t *, uint_fast16_t);
+typedef void ppu_write_func_t (struct nes_t *, uint_fast16_t, uint_fast8_t);
+typedef uint_fast32_t ppu_update_func_t(struct nes_t *);
+typedef void ppu_reset_func_t(struct nes_t *);
+
 
 typedef struct nes_t {
   cpu6502_t cpu;
-  ppu_t ppu;
+  struct {
+    ppu_read_func_t *read;
+    ppu_write_func_t *write;
+    ppu_update_func_t *update;
+    ppu_reset_func_t *reset;
+    void *internal;
+  } ppu;
   cartridge_t cartridge;
   uint8_t controller_data[2];
   uint8_t controller_shift_reg[2];
@@ -28,8 +40,6 @@ extern bool nes_init(nes_t *, nes_cfg_t *);
 extern void nes_init(nes_t *ptNES);
 #endif
 extern nes_err_t nes_setup_rom(nes_t *, uint8_t *, uint_fast32_t );
-
-extern void nes_setup_video(nes_t *, uint8_t *);
 
 extern void nes_reset(nes_t *);
 

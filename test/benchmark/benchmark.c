@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "ppu_framebuffer.h"
 #include "nes.h"
 
 int main(int argc, char* argv[]) {
   int i, result;
+  ppu_t ppu;
   nes_t nes_console;
   FILE *rom_file;
   uint8_t *rom_data;
@@ -34,6 +36,7 @@ int main(int argc, char* argv[]) {
   fclose(rom_file);
 
   // init nes
+  ppu_init(&nes_console, &ppu, video_frame_data);
   nes_init(&nes_console);
   result=nes_setup_rom(&nes_console, rom_data, rom_size);
   if (result) {
@@ -41,8 +44,6 @@ int main(int argc, char* argv[]) {
     return 6;
   }
 
-  nes_setup_video(&nes_console, video_frame_data);
-  
   for (i=0; i<1000; i++) {
     nes_iterate_frame(&nes_console);    
   }

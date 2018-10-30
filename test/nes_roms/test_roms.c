@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <SDL.h>
+#include "ppu_framebuffer.h"
 #include "nes.h"
 
 // global variables
@@ -100,6 +101,7 @@ void free_rom() {
 
 int main(int argc, char* argv[]) {
   test_mode_t test_mode;
+  ppu_t ppu;
   nes_t nes_console;
   SDL_Event event;
   FILE *keypress_file;
@@ -147,8 +149,8 @@ int main(int argc, char* argv[]) {
     sdl_palette[idx]=SDL_MapRGB(screen->format, rgb_palette[idx].red, rgb_palette[idx].green, rgb_palette[idx].blue);
   }
 
+  ppu_init(&nes_console, &ppu, nes_frame_data);
   nes_init(&nes_console);
-  nes_setup_video(&nes_console, nes_frame_data);
   
   int quit = 0;
   

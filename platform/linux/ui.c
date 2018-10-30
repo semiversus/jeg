@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <SDL.h>
+#include "ppu_framebuffer.h"
 #include "nes.h"
 
 // global variables
@@ -33,6 +34,7 @@ void update_frame(uint8_t* frame_data) {
 int main(int argc, char* argv[]) {
   int result;
   nes_t nes_console;
+  ppu_t ppu;
   SDL_Event event;
   FILE *rom_file;
   uint8_t *rom_data;
@@ -79,6 +81,7 @@ int main(int argc, char* argv[]) {
   texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 256, 240);
 
   // init nes
+  ppu_init(&nes_console, &ppu, video_frame_data);
   nes_init(&nes_console);
   result=nes_setup_rom(&nes_console, rom_data, rom_size);
   if (result) {
@@ -86,8 +89,6 @@ int main(int argc, char* argv[]) {
     return 6;
   }
 
-  nes_setup_video(&nes_console, video_frame_data);
-  
   int quit = 0;
   uint16_t key_value;
 
