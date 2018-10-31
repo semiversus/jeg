@@ -1,7 +1,7 @@
 #include "ppu_framebuffer.h"
 #include "nes.h"
 
-#include "common.h"
+#include <string.h>
 #include "jeg_cfg.h"
 
 //! \name PPU Control Register bit mask
@@ -34,6 +34,32 @@
 #define PPUSTATUS_VBLANK                    (1<<7)
 //! @}
 
+static void ppu_reset(nes_t *nes);
+static uint_fast8_t ppu_read(nes_t *ptNES, uint_fast16_t hwAddress);
+static void ppu_write(nes_t *ptNES, uint_fast16_t hwAddress, uint_fast8_t chData);
+static uint_fast32_t ppu_update(nes_t *ptNES);
+
+//! \brief name table mirroring look up table
+const static uint_fast8_t mirror_lookup[20] = {
+    0,0,1,1,                //!< vertical mirroring
+    0,1,0,1,                //!< horizontal mirroring
+    0,0,0,0,                //!< single screen mirroring 0
+    1,1,1,1,                //!< single screen mirroring 1
+    0,1,2,3                 //!< Full/No mirroring
+};
+
+
+uint_fast16_t mirror_address (uint_fast8_t chMode, uint_fast16_t hwAddress) 
+{
+    hwAddress = hwAddress & 0x0FFF;
+    return mirror_lookup[chMode*4+(hwAddress>>10)]*0x400+(hwAddress&0x3ff);
+}
+
+uint_fast8_t find_name_attribute_table_index(uint_fast8_t chMode, uint_fast16_t hwAddress)
+{
+    return mirror_lookup[chMode*4+((hwAddress & 0x0FFF)>>10)];
+}
+
 void ppu_init(nes_t *nes, ppu_t *ppu, uint8_t *video_frame_data)
 {
     nes->ppu.internal = ppu;
@@ -46,7 +72,7 @@ void ppu_init(nes_t *nes, ppu_t *ppu, uint8_t *video_frame_data)
     nes->ppu.reset = ppu_reset;
 }
 
-void ppu_reset(nes_t *nes)
+static void ppu_reset(nes_t *nes)
 {
     ppu_t *ppu=nes->ppu.internal;
 
@@ -190,7 +216,7 @@ static void write_name_attribute_table(nes_t *ptNES, uint_fast16_t hwAddress, ui
 static uint_fast8_t ppu_bus_read(nes_t *nes, uint_fast16_t address);
 static void ppu_bus_write (nes_t *nes, uint_fast16_t address, uint_fast8_t data);
 
-uint_fast8_t ppu_read(nes_t *ptNES, uint_fast16_t hwAddress)
+static uint_fast8_t ppu_read(nes_t *ptNES, uint_fast16_t hwAddress)
 {
     int value, buffered;
 
@@ -294,7 +320,7 @@ void ppu_dma_access(nes_t *ptNES, uint_fast8_t chData)
     }
 }
 
-void ppu_write(nes_t *ptNES, uint_fast16_t hwAddress, uint_fast8_t chData)
+static void ppu_write(nes_t *ptNES, uint_fast16_t hwAddress, uint_fast8_t chData)
 {
     ppu_t *ppu=ptNES->ppu.internal;
     
@@ -723,7 +749,7 @@ static void ppu_mix_background_and_foreground(nes_t *ptNES)
 #define VISIBLE_CYCLE           (ppu->cycle >= 1 && ppu->cycle <= 256)
 #define FETCH_CYCLE             (PRE_FETCH_CYCLE || VISIBLE_CYCLE)
 
-uint_fast32_t ppu_update(nes_t *ptNES)
+static uint_fast32_t ppu_update(nes_t *ptNES)
 {
     ppu_t *ppu=ptNES->ppu.internal;
 

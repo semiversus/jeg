@@ -1,7 +1,7 @@
 #ifndef CPU6502_H
 #define CPU6502_H
 
-#include "common.h"
+#include <stdint.h>
 #include "jeg_cfg.h"
 
 typedef enum address_mode_enum_t {

@@ -1,7 +1,8 @@
-#ifndef PPU_H
-#define PPU_H
+#ifndef PPU_FRAMEBUFFER_H
+#define PPU_FRAMEBUFFER_H
 
-#include "common.h"
+#include <stdint.h>
+#include <stdbool.h>
 #include "jeg_cfg.h"
 
 typedef struct nes_t nes_t;
@@ -159,26 +160,5 @@ typedef struct ppu_t {
 } ppu_t;
 
 extern void ppu_init(nes_t *nes, ppu_t *ppu, uint8_t *video_data_frame);
-
-void ppu_reset(nes_t *nes);
-
-//! \brief read data [8bit] from address [16bit]
-extern uint_fast8_t ppu_read(nes_t *nes, uint_fast16_t hwAddress) ;
-
-//! \brief write data [8bit] to address [16bit]
-extern void ppu_write(nes_t *nes, uint_fast16_t hwAddress, uint_fast8_t chData);
-
-//! \bridef dedicated PPU DMA access
-extern void ppu_dma_access(nes_t *ptNES, uint_fast8_t chData);
-
-extern uint_fast32_t ppu_update(nes_t *ptNES); // update ppu to current cpu cycle, return number of cpu cycles to next frame
-
-#if JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE == DISABLED
-extern void ppu_setup_video(ppu_t *ppu, uint8_t *video_frame_data);
-#endif
-
-#if JEG_USE_FRAME_SYNC_UP_FLAG  == ENABLED
-extern bool ppu_is_frame_ready(ppu_t *ptPPU);
-#endif
 
 #endif

@@ -1,7 +1,8 @@
-#ifndef PPU_H
-#define PPU_H
+#ifndef PPU_CACHING_H
+#define PPU_CACHING_H
 
-#include "common.h"
+#include <stdint.h>
+#include <stdbool.h>
 #include "jeg_cfg.h"
 
 typedef struct nes_t nes_t;

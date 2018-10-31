@@ -92,27 +92,6 @@ static uint8_t *cpu6502_dma_get_source_address(void *ref, uint_fast16_t hwAddres
 #endif
 
 
-//! \brief name table mirroring look up table
-const static uint_fast8_t mirror_lookup[20] = {
-    0,0,1,1,                //!< vertical mirroring
-    0,1,0,1,                //!< horizontal mirroring
-    0,0,0,0,                //!< single screen mirroring 0
-    1,1,1,1,                //!< single screen mirroring 1
-    0,1,2,3                 //!< Full/No mirroring
-};
-
-
-uint_fast16_t mirror_address (uint_fast8_t chMode, uint_fast16_t hwAddress) 
-{
-    hwAddress = hwAddress & 0x0FFF;
-    return mirror_lookup[chMode*4+(hwAddress>>10)]*0x400+(hwAddress&0x3ff);
-}
-
-uint_fast8_t find_name_attribute_table_index(uint_fast8_t chMode, uint_fast16_t hwAddress)
-{
-    return mirror_lookup[chMode*4+((hwAddress & 0x0FFF)>>10)];
-}
-
 #if JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE == ENABLED
 bool nes_init(nes_t *ptNES, nes_cfg_t *ptCFG) 
 #else

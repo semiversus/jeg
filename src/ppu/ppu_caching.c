@@ -1,7 +1,6 @@
 #include "ppu_caching.h"
 #include "nes.h"
 
-#include ".\common.h"
 #include "jeg_cfg.h"
 
 //! \name PPU Control Register bit mask

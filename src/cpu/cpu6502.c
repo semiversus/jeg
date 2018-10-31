@@ -1,7 +1,6 @@
 #include "cpu6502.h"
 #include "cpu6502_debug.h"
 
-#include "common.h"
 #include "jeg_cfg.h"
 
 const opcode_tbl_entry_t opcode_tbl[256]={
