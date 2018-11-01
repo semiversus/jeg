@@ -2,7 +2,6 @@
 #include "nes.h"
 
 #include <string.h>
-#include "jeg_cfg.h"
 
 //! \name PPU Control Register bit mask
 //! @{
@@ -86,21 +85,10 @@ static void ppu_reset(nes_t *nes)
     memset(&(ppu->tNameAttributeTable[0]), 0, sizeof(name_attribute_table_t));
     memset(&(ppu->tNameAttributeTable[1]), 0, sizeof(name_attribute_table_t));
 
-#if JEG_USE_4_PHYSICAL_NAME_ATTRIBUTE_TABLES == ENABLED
-    memset(&(ppu->tNameAttributeTable[2]), 0, sizeof(name_attribute_table_t));
-    memset(&(ppu->tNameAttributeTable[3]), 0, sizeof(name_attribute_table_t));
-#endif
-
     ppu->ppumask            = 0;
     ppu->oam_address        = 0;
     ppu->register_data      = 0;
     ppu->name_table_byte    = 0;
-
-#if JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE == DISABLED
-    if (NULL != ppu->video_frame_data) {
-        memset(ppu->video_frame_data, 0, 256*240);
-    }
-#endif
 }
 
 static void write_name_attribute_table(nes_t *ptNES, uint_fast16_t hwAddress, uint_fast8_t chData)
@@ -113,104 +101,7 @@ static void write_name_attribute_table(nes_t *ptNES, uint_fast16_t hwAddress, ui
 
     hwAddress &= 0x3FF;
 
-#if JEG_USE_BACKGROUND_BUFFERING == ENABLED
-    uint8_t chOldData = ptTable->chBuffer[hwAddress];
-#endif
-
     ptTable->chBuffer[hwAddress] = chData;
-
-#if JEG_USE_BACKGROUND_BUFFERING == ENABLED
-    if (chOldData == chData) {
-        return ;
-    }
-
-    ptTable->bRequestRefresh = true;
-    //! update dirty matrix
-    do {
-        if (hwAddress < 32 * 30) {
-            uint_fast32_t wMask = _BV(hwAddress & 0x1F);
-
-            //! update nametable dirty matrix directly
-            ptTable->wDirtyMatrix[hwAddress>>5] |= wMask;
-
-        } else {
-            //! addressing attribute table, update name table dirty matrix indirectly
-            hwAddress -= 32 * 30;
-
-/*! \note   Each byte controls the palette of a 32x32 pixel or 4x4 tile part of
-            the nametable and is divided into four 2-bit areas. Each area covers
-            16x16 pixels or 2x2 tiles, the size of a [?] block in Super Mario Bros.
-            Given palette numbers topleft, topright, bottomleft, bottomright,
-            each in the range 0 to 3, the value of the byte is
-
-               2xx0    2xx1    2xx2    2xx3    2xx4    2xx5    2xx6    2xx7
-             ,-------+-------+-------+-------+-------+-------+-------+-------.
-             | 0 . 1 |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-        2xC0:| - + - | - + - | - + - | - + - | - + - | - + - | - + - | - + - |
-             | 2 . 3 |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-             +-------+-------+-------+-------+-------+-------+-------+-------+
-             |   .   |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-        2xC8:| - + - | - + - | - + - | - + - | - + - | - + - | - + - | - + - |
-             |   .   |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-             +-------+-------+-------+-------+-------+-------+-------+-------+
-             |   .   |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-        2xD0:| - + - | - + - | - + - | - + - | - + - | - + - | - + - | - + - |
-             |   .   |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-             +-------+-------+-------+-------+-------+-------+-------+-------+
-             |   .   |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-        2xD8:| - + - | - + - | - + - | - + - | - + - | - + - | - + - | - + - |
-             |   .   |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-             +-------+-------+-------+-------+-------+-------+-------+-------+
-             |   .   |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-        2xE0:| - + - | - + - | - + - | - + - | - + - | - + - | - + - | - + - |
-             |   .   |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-             +-------+-------+-------+-------+-------+-------+-------+-------+
-             |   .   |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-        2xE8:| - + - | - + - | - + - | - + - | - + - | - + - | - + - | - + - |
-             |   .   |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-             +-------+-------+-------+-------+-------+-------+-------+-------+
-             |   .   |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-        2xF0:| - + - | - + - | - + - | - + - | - + - | - + - | - + - | - + - |
-             |   .   |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-             +-------+-------+-------+-------+-------+-------+-------+-------+
-        2xF8:|   .   |   .   |   .   |   .   |   .   |   .   |   .   |   .   |
-             `-------+-------+-------+-------+-------+-------+-------+-------'
-
-*/
-
-            uint_fast8_t chTileY = (hwAddress >> 3) * 4;
-            uint_fast8_t chTileX = (hwAddress & 0x07) * 4;
-
-            const struct {
-                uint_fast8_t chX;
-                uint_fast8_t chY;
-            } c_OffSite[] = {
-                {0,0},
-                {2,0},
-                {0,2},
-                {2,2}
-            };
-
-            for (uint_fast8_t chGroup = 0; chGroup < 4; chGroup++) {
-                if ((chOldData & 0x03) != (chData & 0x03)) {
-                    //! current group has been affected
-
-                    uint_fast8_t chY = chTileY + c_OffSite[chGroup].chY;
-                    uint_fast8_t chX = chTileX + c_OffSite[chGroup].chX;
-                    uint_fast32_t wMask = 0x03 << (chX);
-
-                    ptTable->wDirtyMatrix[chY+1]    |= wMask;
-                    ptTable->wDirtyMatrix[chY]      |= wMask;
-
-                }
-                chOldData >>= 2;
-                chData >>= 2;
-            }
-        }
-
-    } while(0);
-
-#endif
 }
 
 static uint_fast8_t ppu_bus_read(nes_t *nes, uint_fast16_t address);
@@ -263,56 +154,11 @@ void ppu_dma_access(nes_t *ptNES, uint_fast8_t chData)
     ppu_t *ppu=ptNES->ppu.internal;
 
 
-#if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED
-    assert(0 == ppu->oam_address);
-    uint8_t *pchSrc = ppu->nes->cpu.fnDMAGetSourceAddress(ppu->nes, address_temp);
-
-#   if JEG_USE_OPTIMIZED_SPRITE_PROCESSING == ENABLED
-    uint8_t *pchCheck = pchSrc;
-#       if JEG_USE_SPRITE_BUFFER == ENABLED
-    uint8_t *pchOAM = ppu->tModifiedSpriteTable.chBuffer;
-#       else
-    uint8_t *pchOAM = ppu->tSpriteTable.chBuffer;
-#endif
-    uint_fast8_t n = 64;
-    do {
-        if (*pchCheck != *pchOAM) {
-            ppu->bOAMUpdated = true;
-            break;
-        }
-        pchCheck += 4;
-        pchOAM += 4;
-    } while(--n);
-#   endif
-
-#   if JEG_USE_SPRITE_BUFFER == ENABLED
-    memcpy(&(ppu->tModifiedSpriteTable.chBuffer[0]), pchSrc, 256);
-    ppu->bRequestRefreshSpriteBuffer = true;
-#   else
-    memcpy(&(ppu->tSpriteTable.chBuffer[0]), pchSrc, 256);
-#   endif
-
-#else
     for(uint_fast16_t i=0; i<256; i++) {
         uint_fast8_t v = ptNES->cpu.read(ptNES, address_temp++);
 
-#   if JEG_USE_SPRITE_BUFFER == ENABLED
-        ppu->tModifiedSpriteTable.chBuffer[(ppu->oam_address + i) & 0xFF] = v;
-#   else
-#       if JEG_USE_OPTIMIZED_SPRITE_PROCESSING == ENABLED
-        if (!(i & 0x03)) {
-            if (ppu->tSpriteTable.chBuffer[(ppu->oam_address + i) & 0xFF] != v) {
-                ppu->bOAMUpdated = true;
-            }
-        }
-#       endif
         ppu->tSpriteTable.chBuffer[(ppu->oam_address + i) & 0xFF] = v;
-#   endif
     }
-#   if JEG_USE_SPRITE_BUFFER == ENABLED
-    ppu->bRequestRefreshSpriteBuffer = true;
-#endif
-#endif
 
     ptNES->cpu.stall_cycles += 513;
     if (ptNES->cpu.cycle_number & 0x01) {
@@ -342,14 +188,6 @@ static void ppu_write(nes_t *ptNES, uint_fast16_t hwAddress, uint_fast8_t chData
             ppu->oam_address=chData;
             break;
         case 4:
-        #if JEG_USE_OPTIMIZED_SPRITE_PROCESSING == ENABLED
-            if (!(ppu->oam_address & 0x03)) {
-                uint_fast8_t chOld = ppu->tSpriteTable.chBuffer[ppu->oam_address];
-                if (chOld != chData) {
-                    ppu->bOAMUpdated = true;
-                }
-            }
-        #endif
             ppu->tSpriteTable.chBuffer[ppu->oam_address++] = chData;
             break;
         case 5:
@@ -486,59 +324,6 @@ static uint32_t fetch_sprite_pattern(nes_t *ptNES, sprite_t *ptSpriteInfo, uint_
     return data;
 }
 
-#if JEG_USE_OPTIMIZED_SPRITE_PROCESSING == ENABLED
-static void sort_sprite_order_list(ppu_t *ptPPU)
-{
-    //! a very simple & stupid sorting algorithm
-    uint_fast8_t chIndex = 0, n;
-
-    if (!ptPPU->bOAMUpdated) {
-        return ;
-    }
-    ptPPU->bOAMUpdated = false;
-
-    //! initialise the list
-    for (;chIndex < 64; chIndex++) {
-        ptPPU->SpriteYOrderList.List[chIndex].chIndex = chIndex;
-        ptPPU->SpriteYOrderList.List[chIndex].chY = ptPPU->tSpriteTable.SpriteInfo[chIndex].chY;
-    }
-
-    //! sort the list
-    for (chIndex = 0; chIndex < 64; chIndex++) {
-        uint_fast16_t hwMin = 0xFFFF;
-        uint_fast16_t hwMinIndex = chIndex;
-        for (n = chIndex; n < 64; n++) {
-            if (ptPPU->SpriteYOrderList.List[n].chY < hwMin) {
-                hwMinIndex = n;
-                hwMin = ptPPU->SpriteYOrderList.List[n].chY;
-            }
-        }
-
-        if (hwMin >= 240) {
-            //! no need to do it.
-            break;
-        } else if (chIndex == hwMinIndex) {
-            continue;
-        }
-
-        //! swap
-
-        do {
-            uint_fast8_t chTempIndex = ptPPU->SpriteYOrderList.List[hwMinIndex].chIndex;
-
-            ptPPU->SpriteYOrderList.List[hwMinIndex].chIndex = ptPPU->SpriteYOrderList.List[chIndex].chIndex;
-            ptPPU->SpriteYOrderList.List[hwMinIndex].chY = ptPPU->SpriteYOrderList.List[chIndex].chY;
-
-            ptPPU->SpriteYOrderList.List[chIndex].chIndex = chTempIndex;
-            ptPPU->SpriteYOrderList.List[chIndex].chY = hwMin;
-        } while(false);
-    }
-
-    ptPPU->SpriteYOrderList.chVisibleCount = chIndex;
-    ptPPU->SpriteYOrderList.chCurrent = 0;
-}
-#endif
-
 static inline uint_fast8_t fetch_sprite_info_on_specified_line(nes_t *ptNES, uint_fast32_t nScanLine)
 {
     ppu_t *ptPPU=ptNES->ppu.internal;
@@ -546,33 +331,6 @@ static inline uint_fast8_t fetch_sprite_info_on_specified_line(nes_t *ptNES, uin
     uint_fast8_t chCount = 0;
     uint_fast8_t chSpriteSize = ((ptPPU->ppuctrl & PPUCTRL_SPRITE_SIZE) ? 16 : 8);
 
-#if JEG_USE_OPTIMIZED_SPRITE_PROCESSING == ENABLED
-    //! initialise sprite Y order sort list
-    sort_sprite_order_list(ptPPU);
-
-    for(int_fast32_t j = ptPPU->SpriteYOrderList.chCurrent; j < ptPPU->SpriteYOrderList.chVisibleCount; j++) {
-        uint_fast8_t chIndex = ptPPU->SpriteYOrderList.List[j].chIndex;
-
-        int_fast32_t row = nScanLine - ptPPU->SpriteYOrderList.List[j].chY;
-        if (row < 0) {
-            continue;
-        } else if (row >= chSpriteSize) {
-            //! don't check previous sprites
-            ptPPU->SpriteYOrderList.chCurrent++;
-            continue;
-        }
-
-        if (chCount < JEG_MAX_ALLOWED_SPRITES_ON_SINGLE_SCANLINE) {
-            ptPPU->sprite_patterns[chCount]   = fetch_sprite_pattern(ptNES, ptPPU->tSpriteTable.SpriteInfo + chIndex, row);
-            ptPPU->sprite_positions[chCount]  = ptPPU->tSpriteTable.SpriteInfo[chIndex].chPosition;
-            ptPPU->sprite_priorities[chCount] = ptPPU->tSpriteTable.SpriteInfo[chIndex].Attributes.Priority;
-            ptPPU->sprite_indicies[chCount]   = chIndex;
-            chCount++;
-        } else {
-            break;
-        }
-    }
-#else
     // evaluate sprite
     for(int_fast32_t j = 0; j < 64; j++) {
         int_fast32_t row = ptPPU->scanline-ptPPU->tSpriteTable.SpriteInfo[j].chY;
@@ -581,14 +339,13 @@ static inline uint_fast8_t fetch_sprite_info_on_specified_line(nes_t *ptNES, uin
             continue;
         }
         if (chCount < JEG_MAX_ALLOWED_SPRITES_ON_SINGLE_SCANLINE) {
-            ptPPU->sprite_patterns[chCount]   = fetch_sprite_pattern(ptPPU, ptPPU->tSpriteTable.SpriteInfo + j, row);
+            ptPPU->sprite_patterns[chCount]   = fetch_sprite_pattern(ptNES, ptPPU->tSpriteTable.SpriteInfo + j, row);
             ptPPU->sprite_positions[chCount]  = ptPPU->tSpriteTable.SpriteInfo[j].chPosition;
             ptPPU->sprite_priorities[chCount] = ptPPU->tSpriteTable.SpriteInfo[j].Attributes.Priority;
             ptPPU->sprite_indicies[chCount]   = j;
             chCount++;
         }
     }
-#endif
 
     if (chCount > 8) {
         ptPPU->ppustatus |= PPUSTATUS_SPRITE_OVERFLOW;
@@ -728,15 +485,9 @@ static void ppu_mix_background_and_foreground(nes_t *ptNES)
     if ( color >= 16 && !(color & 0x03)) {
         color -= 16;
     }
-#if JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE == ENABLED
-    ptPPU->fnDrawPixel(   ptPPU->ptTag,
-                        ptPPU->scanline,                              //!< Y
-                        ptPPU->cycle-1,                               //!< X
-                        ptPPU->palette[color]);                       //!< 8bit color
-#else
+
     ptPPU->video_frame_data[ptPPU->scanline * 256 + ptPPU->cycle - 1]
             = ptPPU->palette[color];
-#endif
 }
 
 

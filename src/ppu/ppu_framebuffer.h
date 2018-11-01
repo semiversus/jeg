@@ -3,12 +3,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "jeg_cfg.h"
 
-typedef struct nes_t nes_t;
-
-typedef void ppu_draw_pixel_func_t(void *, uint_fast8_t , uint_fast8_t , uint_fast8_t );
-
+#include "nes.h"
 
 typedef union {
     uint8_t chValue;
@@ -45,12 +41,6 @@ typedef struct {
         };
         uint8_t chBuffer[1024];
     };
-
-#if JEG_USE_BACKGROUND_BUFFERING == ENABLED
-    compact_dual_pixels_t chBackgroundBuffer[240][128];
-    uint_fast32_t wDirtyMatrix[32];                                             //! do not modify it to 30
-    bool bRequestRefresh;
-#endif
 } name_attribute_table_t;
 
 typedef union {
@@ -84,28 +74,10 @@ typedef struct ppu_t {
     uint_fast16_t scanline;
 
     uint_fast8_t palette[32];
-    union {
-#if JEG_USE_4_PHYSICAL_NAME_ATTRIBUTE_TABLES == ENABLED
-        name_attribute_table_t tNameAttributeTable[4];
-#else
-        name_attribute_table_t tNameAttributeTable[2];
-#endif
-
-    };
+    
+    name_attribute_table_t tNameAttributeTable[2];
 
     sprite_table_t tSpriteTable;
-
-
-
-#if JEG_USE_SPRITE_BUFFER == ENABLED
-    sprite_table_t tModifiedSpriteTable;
-    uint32_t wSpriteBuffer[64][16];
-    bool bRequestRefreshSpriteBuffer;
-#endif
-
-#if JEG_USE_OPTIMIZED_SPRITE_PROCESSING == ENABLED
-    bool bOAMUpdated;
-#endif
 
     struct {
         struct {
