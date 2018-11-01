@@ -8,7 +8,6 @@
 static uint_fast8_t cpu6502_bus_read (void *ref, uint_fast16_t address) 
 {
     nes_t* nes=(nes_t *)ref;
-    int value;
 
     if (address<0x2000) {
         return nes->ram_data[address & 0x7FF];
@@ -19,15 +18,8 @@ static uint_fast8_t cpu6502_bus_read (void *ref, uint_fast16_t address)
     } else if (address<0x4000) {
         return nes->ppu.read(nes, address);
         
-    } else if (address==0x4016) {
-        value=nes->controller_shift_reg[0]&1;
-        nes->controller_shift_reg[0]=(nes->controller_shift_reg[0]>>1)|0x80;
-        return value;
-        
-    } else if (address==0x4017) {
-        value=nes->controller_shift_reg[1]&1;
-        nes->controller_shift_reg[1]=(nes->controller_shift_reg[1]>>1)|0x80;
-        return value;
+    } else if (address==0x4016 || address==0x4017) {
+        return nes->controller.read(nes, address-0x4016);
     }
     return 0;
 }
@@ -45,9 +37,8 @@ static void cpu6502_bus_write (void *ref, uint_fast16_t address, uint_fast8_t va
     } else if (address==0x4014) {
         nes->ppu.write(nes, address, value);
         
-    } else if (address==0x4016 && value&0x01) {
-        nes->controller_shift_reg[0]=nes->controller_data[0];
-        nes->controller_shift_reg[1]=nes->controller_data[1];
+    } else if (address==0x4016) {
+        nes->controller.write(nes, value);
         
     } else if (address>=0x6000) {
         cartridge_write_prg(&nes->cartridge, address, value);
@@ -169,11 +160,6 @@ nes_err_t nes_setup_rom(nes_t *ptNES, uint8_t *pchData, uint_fast32_t wSize)
             break;
         }
 
-        ptNES->controller_data[0] = 0;
-        ptNES->controller_data[1] = 0;
-        ptNES->controller_shift_reg[0] = 0;
-        ptNES->controller_shift_reg[1] = 0;
-
         tResult = cartridge_setup(&(ptNES->cartridge), pchData, wSize);
         if (nes_ok == tResult) {
             nes_reset(ptNES);
@@ -193,10 +179,4 @@ void nes_reset(nes_t *nes)
 void nes_iterate_frame(nes_t *nes) 
 {
     cpu6502_run(&nes->cpu, nes->ppu.update(nes));
-}
-
-void nes_set_controller(nes_t *nes, uint8_t controller1, uint8_t controller2) 
-{
-    nes->controller_data[0] = controller1;
-    nes->controller_data[1] = controller2;
 }

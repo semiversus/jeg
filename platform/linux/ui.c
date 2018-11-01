@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <SDL.h>
 #include "ppu_framebuffer.h"
+#include "controller_direct.h"
 #include "nes.h"
 
 // global variables
@@ -35,6 +36,7 @@ int main(int argc, char* argv[]) {
   int result;
   nes_t nes_console;
   ppu_t ppu;
+  controller_direct_t controller;
   SDL_Event event;
   FILE *rom_file;
   uint8_t *rom_data;
@@ -82,6 +84,7 @@ int main(int argc, char* argv[]) {
 
   // init nes
   ppu_init(&nes_console, &ppu, video_frame_data);
+  controller_direct_init(&nes_console, &controller);
   nes_init(&nes_console);
   result=nes_setup_rom(&nes_console, rom_data, rom_size);
   if (result) {
@@ -150,7 +153,7 @@ int main(int argc, char* argv[]) {
       default:
         break;
     }
-    nes_set_controller(&nes_console, controller1, 0);
+    controller_direct_set(&nes_console, controller1, 0);
     nes_iterate_frame(&nes_console);
     update_frame(video_frame_data);
     wait_ms= (int)next_frame_tick-SDL_GetTicks();

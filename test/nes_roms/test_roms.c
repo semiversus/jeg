@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <SDL.h>
 #include "ppu_framebuffer.h"
+#include "controller_direct.h"
 #include "nes.h"
 
 // global variables
@@ -102,6 +103,7 @@ void free_rom() {
 int main(int argc, char* argv[]) {
   test_mode_t test_mode;
   ppu_t ppu;
+  controller_direct_t controller;
   nes_t nes_console;
   SDL_Event event;
   FILE *keypress_file;
@@ -150,6 +152,7 @@ int main(int argc, char* argv[]) {
   }
 
   ppu_init(&nes_console, &ppu, nes_frame_data);
+  controller_direct_init(&nes_console, &controller);
   nes_init(&nes_console);
   
   int quit = 0;
@@ -169,7 +172,7 @@ int main(int argc, char* argv[]) {
       switch (line[0]) {
         case 'K': // simulate key press and advance one frame
           sscanf(line+1, "%x", &key_value);
-          nes_set_controller(&nes_console, key_value, 0);
+          controller_direct_set(&nes_console, key_value, 0);
           nes_iterate_frame(&nes_console);
           break;
         case 'S': // check screenshot
@@ -253,7 +256,7 @@ int main(int argc, char* argv[]) {
               break;
             case SDLK_n: // next frame
               fprintf(keypress_file, "K%02x\n", key_value);
-              nes_set_controller(&nes_console, key_value, 0);
+              controller_direct_set(&nes_console, key_value, 0);
               nes_iterate_frame(&nes_console);
               update_frame(nes_frame_data, 256, 240);
               break;
