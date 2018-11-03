@@ -35,7 +35,11 @@ static void cpu6502_bus_write (void *ref, uint_fast16_t address, uint_fast8_t va
         nes->ppu.write(nes, address, value);
         
     } else if (address==0x4014) {
-        nes->ppu.write(nes, address, value);
+        nes->ppu.write_dma(nes, &(nes->ram_data[value<<8]) );
+        nes->cpu.stall_cycles += 513;
+        if (nes->cpu.cycle_number & 0x01) {
+            nes->cpu.stall_cycles++;
+        }
         
     } else if (address==0x4016) {
         nes->controller.write(nes, value);
@@ -65,24 +69,6 @@ static void cpu6502_bus_writew (void *ref, uint_fast16_t hwAddress, uint_fast16_
 }
 #endif
 
-#if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED
-static uint8_t *cpu6502_dma_get_source_address(void *ref, uint_fast16_t hwAddress)
-{
-    
-    nes_t* nes=(nes_t *)ref;
-    
-    if ( hwAddress<0x2000 ) {
-        return &(nes->ram_data[hwAddress & 0x7FF]);
-    } else  if (hwAddress>=0x6000) {
-        return cartridge_get_prg_src_address(&nes->cartridge, hwAddress);
-    } else {
-        return NULL;
-    }
-
-}
-#endif
-
-
 #if JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE == ENABLED
 bool nes_init(nes_t *ptNES, nes_cfg_t *ptCFG) 
 #else
@@ -106,8 +92,7 @@ void nes_init(nes_t *ptNES)
             break;
         }
     #endif
-    #if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED ||                          \
-        JEG_USE_EXTRA_16BIT_BUS_ACCESS       == ENABLED
+    #if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
         {
             cpu6502_cfg_t tCFG = {
                 ptNES,
@@ -116,9 +101,6 @@ void nes_init(nes_t *ptNES)
             #if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
                 &cpu6502_bus_readw,
                 &cpu6502_bus_writew,
-            #endif
-            #if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED
-                &cpu6502_dma_get_source_address,
             #endif
             };
             if (! cpu6502_init(&ptNES->cpu, &tCFG)) {

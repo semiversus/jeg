@@ -69,16 +69,6 @@ nes_err_t cartridge_setup(cartridge_t *ptCartridge, uint8_t *pchData, uint_fast3
     return nes_ok;
 }
 
-#if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED
-uint8_t *cartridge_get_prg_src_address(cartridge_t *cartridge, uint_fast16_t hwAddress)
-{
-    if (hwAddress>=0x8000) {
-        return &(cartridge->pchPRGMemory[ hwAddress & cartridge->wPRGAddressMask]);
-    } 
-    return  &(cartridge->chIOData[hwAddress & 0x1fff]);
-}
-#endif
-
 //! \brief access cpu memory bus
 uint_fast8_t cartridge_read_prg(cartridge_t *cartridge, uint_fast16_t hwAddress) {
 

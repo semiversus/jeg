@@ -39,10 +39,6 @@ typedef uint_fast16_t cpu6502_readw_func_t (void *, uint_fast16_t hwAddress);
 typedef void cpu6502_writew_func_t(void *, uint_fast16_t hwAddress, uint_fast16_t hwValue);
 #endif
 
-#if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED
-typedef uint8_t *cpu6502_dma_get_src_addr(void *, uint_fast16_t hwAddress);
-#endif
-
 typedef struct cpu6502_t {
     // internal registers (16bit is needed for correct overflow handling)
     int_fast16_t reg_A; // accumulator [8Bit]
@@ -78,13 +74,9 @@ typedef struct cpu6502_t {
     cpu6502_readw_func_t *readw;
     cpu6502_writew_func_t *writew;
 #endif
-#if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED
-    cpu6502_dma_get_src_addr *fnDMAGetSourceAddress;
-#endif
 } cpu6502_t;
 
-#if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED ||                          \
-    JEG_USE_EXTRA_16BIT_BUS_ACCESS       == ENABLED
+#if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
 typedef struct
 {
     void                    *reference;
@@ -93,9 +85,6 @@ typedef struct
 #if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
     cpu6502_readw_func_t    *readw;
     cpu6502_writew_func_t   *writew;
-#endif
-#if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED
-    cpu6502_dma_get_src_addr *fnDMAGetSourceAddress;
 #endif
 }cpu6502_cfg_t;
 

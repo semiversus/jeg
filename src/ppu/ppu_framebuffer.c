@@ -36,6 +36,7 @@
 static void ppu_reset(nes_t *nes);
 static uint_fast8_t ppu_read(nes_t *ptNES, uint_fast16_t hwAddress);
 static void ppu_write(nes_t *ptNES, uint_fast16_t hwAddress, uint_fast8_t chData);
+static void ppu_write_dma(nes_t *nes, uint8_t *data);
 static uint_fast32_t ppu_update(nes_t *ptNES);
 
 //! \brief name table mirroring look up table
@@ -67,6 +68,7 @@ void ppu_init(nes_t *nes, ppu_t *ppu, uint8_t *video_frame_data)
     ppu_reset(nes);
     nes->ppu.read = ppu_read;
     nes->ppu.write = ppu_write;
+    nes->ppu.write_dma = ppu_write_dma;
     nes->ppu.update = ppu_update;
     nes->ppu.reset = ppu_reset;
 }
@@ -148,32 +150,15 @@ static uint_fast8_t ppu_read(nes_t *ptNES, uint_fast16_t hwAddress)
 
     return value;
 }
-void ppu_dma_access(nes_t *ptNES, uint_fast8_t chData)
-{
-    uint_fast16_t address_temp = chData << 8;
-    ppu_t *ppu=ptNES->ppu.internal;
 
-
-    for(uint_fast16_t i=0; i<256; i++) {
-        uint_fast8_t v = ptNES->cpu.read(ptNES, address_temp++);
-
-        ppu->tSpriteTable.chBuffer[(ppu->oam_address + i) & 0xFF] = v;
-    }
-
-    ptNES->cpu.stall_cycles += 513;
-    if (ptNES->cpu.cycle_number & 0x01) {
-        ptNES->cpu.stall_cycles++;
-    }
+static void ppu_write_dma(nes_t *nes, uint8_t *data) {
+    ppu_t *ppu=nes->ppu.internal;
+    memcpy(&ppu->tSpriteTable.chBuffer[ppu->oam_address], data, 256);
 }
 
 static void ppu_write(nes_t *ptNES, uint_fast16_t hwAddress, uint_fast8_t chData)
 {
     ppu_t *ppu=ptNES->ppu.internal;
-    
-    if (hwAddress==0x4014) {
-        ppu_dma_access(ptNES, chData);
-        return;
-    }
     ppu->register_data = chData;
 
     switch (hwAddress & 7) {

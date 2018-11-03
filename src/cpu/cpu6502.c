@@ -318,17 +318,13 @@ const opcode_tbl_entry_t opcode_tbl[256]={
 #   define DUMMY_READ(adr) cpu->read(cpu->reference, adr);
 #endif
 
-#if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED ||                          \
-    JEG_USE_EXTRA_16BIT_BUS_ACCESS       == ENABLED
+#if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
 bool cpu6502_init(cpu6502_t *ptCPU, cpu6502_cfg_t *ptCFG)
 {
     do {
         if (NULL == ptCPU || NULL == ptCFG) {
             break;
         } else if (     (NULL == ptCFG->reference)
-                #if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED
-                    ||  (NULL == ptCFG->fnDMAGetSourceAddress)
-                #endif
                 #if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
                     ||  (NULL == ptCFG->readw)
                     ||  (NULL == ptCFG->writew)
@@ -344,9 +340,6 @@ bool cpu6502_init(cpu6502_t *ptCPU, cpu6502_cfg_t *ptCFG)
     #if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
         ptCPU->readw =                  ptCFG->readw;
         ptCPU->writew =                 ptCFG->writew;
-    #endif
-    #if JEG_USE_DMA_MEMORY_COPY_ACCELERATION == ENABLED
-        ptCPU->fnDMAGetSourceAddress =  ptCFG->fnDMAGetSourceAddress;
     #endif
         return true;
     } while(false);

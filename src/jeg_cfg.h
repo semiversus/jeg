@@ -30,13 +30,6 @@
 #   define JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE       DISABLED
 #endif
 
-/*! \brief This switch is used to fetch the source address of the target memory
- *!        and use memcpy to replace the byte-by-byte bus_read access.
- */
-#ifndef JEG_USE_DMA_MEMORY_COPY_ACCELERATION
-#   define JEG_USE_DMA_MEMORY_COPY_ACCELERATION        DISABLED
-#endif
-
 /*! \brief This switch is used to add a didicated 16bit bus read/write interface
  *!        to accelerate a little bit
  */
