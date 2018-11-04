@@ -70,25 +70,14 @@ nes_err_t cartridge_setup(cartridge_t *ptCartridge, uint8_t *pchData, uint_fast3
 }
 
 //! \brief access cpu memory bus
-uint_fast8_t cartridge_read_prg(cartridge_t *cartridge, uint_fast16_t hwAddress) {
+uint_fast16_t cartridge_read_prg(cartridge_t *cartridge, uint_fast16_t hwAddress) {
 
     if (hwAddress >= 0x8000) {
-        return cartridge->pchPRGMemory[hwAddress & cartridge->wPRGAddressMask];
+        return *(uint16_t*)&cartridge->pchPRGMemory[hwAddress & cartridge->wPRGAddressMask];
     }    
     
-    return cartridge->chIOData[hwAddress & 0x1FFF];
+    return *(uint16_t*)&cartridge->chIOData[hwAddress & 0x1FFF];
 }
-
-#if JEG_USE_EXTRA_16BIT_BUS_ACCESS       == ENABLED
-uint_fast16_t cartridge_readw_prg(cartridge_t *cartridge, uint_fast16_t hwAddress)
-{
-    if (hwAddress >= 0x8000) {
-        return *(uint16_t *)&(cartridge->pchPRGMemory[hwAddress & cartridge->wPRGAddressMask]);
-    }    
-    
-    return cartridge->chIOData[hwAddress & 0x1FFF];
-}
-#endif
 
 void cartridge_write_prg(cartridge_t *cartridge, uint_fast16_t hwAddress, uint_fast8_t value) 
 {

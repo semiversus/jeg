@@ -31,13 +31,9 @@ extern const opcode_tbl_entry_t opcode_tbl[];
 
 typedef enum {INTERRUPT_NONE=0, INTERRUPT_NMI, INTERRUPT_IRQ} cpu6502_interrupt_enum_t;
 
-typedef uint_fast8_t cpu6502_read_func_t (void *, uint_fast16_t hwAddress); // read data [8bit] from address [16bit]
+typedef uint_fast16_t cpu6502_read_func_t (void *, uint_fast16_t hwAddress); // read data [16bit] from address [16bit]
 typedef void cpu6502_write_func_t (void *, uint_fast16_t hwAddress, uint_fast8_t chValue); // write data [8bit] to address [16bit]
 
-#if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
-typedef uint_fast16_t cpu6502_readw_func_t (void *, uint_fast16_t hwAddress);
-typedef void cpu6502_writew_func_t(void *, uint_fast16_t hwAddress, uint_fast16_t hwValue);
-#endif
 
 typedef struct cpu6502_t {
     // internal registers (16bit is needed for correct overflow handling)
@@ -70,28 +66,9 @@ typedef struct cpu6502_t {
     void *reference; // pointer to a reference, added as argument to read and write functions
     cpu6502_read_func_t *read;
     cpu6502_write_func_t *write;
-#if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
-    cpu6502_readw_func_t *readw;
-    cpu6502_writew_func_t *writew;
-#endif
 } cpu6502_t;
 
-#if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
-typedef struct
-{
-    void                    *reference;
-    cpu6502_read_func_t     *read;
-    cpu6502_write_func_t    *write;
-#if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
-    cpu6502_readw_func_t    *readw;
-    cpu6502_writew_func_t   *writew;
-#endif
-}cpu6502_cfg_t;
-
-extern bool cpu6502_init(cpu6502_t *cpu, cpu6502_cfg_t *ptCFG);
-#else
 extern void cpu6502_init(cpu6502_t *cpu, void *reference, cpu6502_read_func_t read, cpu6502_write_func_t write);
-#endif
 
 extern void cpu6502_reset(cpu6502_t *cpu); // reset cpu to powerup state
 
@@ -99,5 +76,7 @@ extern void cpu6502_reset(cpu6502_t *cpu); // reset cpu to powerup state
 extern uint_fast32_t cpu6502_run(cpu6502_t *cpu, int_fast32_t n_cycles);
                                                // returns number of cycles cpu ran
 extern void cpu6502_trigger_interrupt(cpu6502_t *cpu, cpu6502_interrupt_enum_t interrupt); // trigger an interrupt
+
+extern void cpu6502_dump(cpu6502_t *cpu);
 
 #endif

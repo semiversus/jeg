@@ -1,14 +1,13 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "cpu6502.h"
-#include "cpu6502_debug.h"
 
-int data[65536]={
+uint8_t data[65536]={
   #include "rom.inc"
 };
 
-uint_fast8_t _read(void *ref, uint_fast16_t adr) {
-  return data[adr];
+uint_fast16_t _read(void *ref, uint_fast16_t adr) {
+  return *(uint16_t*)&data[adr];
 }
 
 void _write(void *ref, uint_fast16_t adr, uint_fast8_t value) {

@@ -75,16 +75,11 @@ typedef struct {
 extern nes_err_t cartridge_setup(cartridge_t *, uint8_t *, uint_fast32_t );
 
 // access cpu memory bus
-extern uint_fast8_t cartridge_read_prg(cartridge_t *, uint_fast16_t );
-extern uint_fast8_t cartridge_read_chr(cartridge_t *, uint_fast16_t );
-
-
-#if JEG_USE_EXTRA_16BIT_BUS_ACCESS       == ENABLED
-extern uint_fast16_t cartridge_readw_prg(cartridge_t *, uint_fast16_t );
-#endif
+extern uint_fast16_t cartridge_read_prg(cartridge_t *, uint_fast16_t );
+extern void cartridge_write_prg(cartridge_t *, uint_fast16_t , uint_fast8_t );
 
 //! \brief access ppu memory bus
-extern void cartridge_write_prg(cartridge_t *, uint_fast16_t , uint_fast8_t );
+extern uint_fast8_t cartridge_read_chr(cartridge_t *, uint_fast16_t );
 extern void cartridge_write_chr(cartridge_t *, uint_fast16_t , uint_fast8_t );
 
 #endif

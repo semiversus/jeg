@@ -30,13 +30,6 @@
 #   define JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE       DISABLED
 #endif
 
-/*! \brief This switch is used to add a didicated 16bit bus read/write interface
- *!        to accelerate a little bit
- */
-#ifndef JEG_USE_EXTRA_16BIT_BUS_ACCESS
-#   define JEG_USE_EXTRA_16BIT_BUS_ACCESS              DISABLED
-#endif
-
 /*! \brief This switch is used to enable the dummy read existing in real hardware.
  *!        As it is rarely required by games (and actually it is a hardware bug),
  *!        the switch is disabled by default to improve performance

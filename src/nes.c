@@ -1,16 +1,15 @@
 #include "nes.h"
-#include "cpu6502_debug.h"
 #include <string.h>
 #include <stdbool.h>
 #include "jeg_cfg.h"
 
 
-static uint_fast8_t cpu6502_bus_read (void *ref, uint_fast16_t address) 
+static uint_fast16_t cpu6502_bus_read (void *ref, uint_fast16_t address) 
 {
     nes_t* nes=(nes_t *)ref;
 
     if (address<0x2000) {
-        return nes->ram_data[address & 0x7FF];
+        return *(uint16_t*)&nes->ram_data[address & 0x7FF];
         
     } else if (address>=0x6000) {
         return cartridge_read_prg(&nes->cartridge, address);
@@ -49,26 +48,6 @@ static void cpu6502_bus_write (void *ref, uint_fast16_t address, uint_fast8_t va
     } 
 }
 
-#if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
-static uint_fast16_t cpu6502_bus_readw (void *ref, uint_fast16_t hwAddress) 
-{
-    nes_t* nes=(nes_t *)ref;
-
-    if ( hwAddress<0x2000 ) {
-        return *(uint16_t *)&(nes->ram_data[hwAddress & 0x7FF]);
-    } else  if (hwAddress>=0x6000) {
-        return cartridge_readw_prg(&nes->cartridge, hwAddress);
-    } else {
-        return cpu6502_bus_read(ref, hwAddress) | (cpu6502_bus_read(ref, hwAddress + 1) << 8);
-    }
-}
-
-static void cpu6502_bus_writew (void *ref, uint_fast16_t hwAddress, uint_fast16_t hwValue) 
-{
-    // it is not used...
-}
-#endif
-
 #if JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE == ENABLED
 bool nes_init(nes_t *ptNES, nes_cfg_t *ptCFG) 
 #else
@@ -92,24 +71,9 @@ void nes_init(nes_t *ptNES)
             break;
         }
     #endif
-    #if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
-        {
-            cpu6502_cfg_t tCFG = {
-                ptNES,
-                &cpu6502_bus_read,
-                &cpu6502_bus_write,
-            #if JEG_USE_EXTRA_16BIT_BUS_ACCESS == ENABLED
-                &cpu6502_bus_readw,
-                &cpu6502_bus_writew,
-            #endif
-            };
-            if (! cpu6502_init(&ptNES->cpu, &tCFG)) {
-                break;
-            }
-        } 
-    #else
-        cpu6502_init(&ptNES->cpu, ptNES, &cpu6502_bus_read, &cpu6502_bus_write);
-    #endif
+
+    cpu6502_init(&ptNES->cpu, ptNES, &cpu6502_bus_read, &cpu6502_bus_write);
+    
     #if JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE == ENABLED
         {
             ppu_cfg_t tCFG = {
