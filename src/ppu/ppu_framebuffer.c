@@ -39,27 +39,6 @@ static void ppu_write(nes_t *ptNES, uint_fast16_t hwAddress, uint_fast8_t chData
 static void ppu_write_dma(nes_t *nes, uint8_t *data);
 static uint_fast32_t ppu_update(nes_t *ptNES);
 
-//! \brief name table mirroring look up table
-const static uint_fast8_t mirror_lookup[20] = {
-    0,0,1,1,                //!< vertical mirroring
-    0,1,0,1,                //!< horizontal mirroring
-    0,0,0,0,                //!< single screen mirroring 0
-    1,1,1,1,                //!< single screen mirroring 1
-    0,1,2,3                 //!< Full/No mirroring
-};
-
-
-uint_fast16_t mirror_address (uint_fast8_t chMode, uint_fast16_t hwAddress) 
-{
-    hwAddress = hwAddress & 0x0FFF;
-    return mirror_lookup[chMode*4+(hwAddress>>10)]*0x400+(hwAddress&0x3ff);
-}
-
-uint_fast8_t find_name_attribute_table_index(uint_fast8_t chMode, uint_fast16_t hwAddress)
-{
-    return mirror_lookup[chMode*4+((hwAddress & 0x0FFF)>>10)];
-}
-
 void ppu_init(nes_t *nes, ppu_t *ppu, uint8_t *video_frame_data)
 {
     nes->ppu.internal = ppu;
@@ -83,27 +62,11 @@ static void ppu_reset(nes_t *nes)
     ppu->ppuctrl            = 0;
     ppu->ppustatus          = 0;
     ppu->t                  = 0;
-
-    memset(&(ppu->tNameAttributeTable[0]), 0, sizeof(name_attribute_table_t));
-    memset(&(ppu->tNameAttributeTable[1]), 0, sizeof(name_attribute_table_t));
-
     ppu->ppumask            = 0;
     ppu->oam_address        = 0;
     ppu->register_data      = 0;
     ppu->name_table_byte    = 0;
-}
-
-static void write_name_attribute_table(nes_t *ptNES, uint_fast16_t hwAddress, uint_fast8_t chData)
-{
-    ppu_t *ppu=ptNES->ppu.internal;
-
-    uint_fast8_t chPhysicTableIndex =
-        find_name_attribute_table_index(ptNES->cartridge.chMirror, hwAddress);
-    name_attribute_table_t *ptTable = &(ppu->tNameAttributeTable[chPhysicTableIndex]);
-
-    hwAddress &= 0x3FF;
-
-    ptTable->chBuffer[hwAddress] = chData;
+    memset(ppu->video_frame_data, 0, 256*240);
 }
 
 static uint_fast8_t ppu_bus_read(nes_t *nes, uint_fast16_t address);
@@ -211,12 +174,8 @@ uint_fast8_t ppu_bus_read (nes_t *ptNES, uint_fast16_t hwAddress)
 
     ppu_t *ppu=ptNES->ppu.internal;
 
-    if (hwAddress <0x2000) {
-        chData=cartridge_read_chr(&ptNES->cartridge, hwAddress);
-    } else if (hwAddress<0x3F00) {
-        uint_fast8_t chPhysicTableIndex =
-            find_name_attribute_table_index(ptNES->cartridge.chMirror, hwAddress) ;
-        chData = ppu->tNameAttributeTable[chPhysicTableIndex].chBuffer[hwAddress & 0x3FF];
+    if (hwAddress < 0x3F00) {
+        chData = ptNES->cartridge.read_chr(ptNES->cartridge.internal, hwAddress);
     } else if (hwAddress<0x4000) {
         hwAddress &= 0x1F;
         if (hwAddress>=16 && (!(hwAddress & 0x03))) {
@@ -224,7 +183,7 @@ uint_fast8_t ppu_bus_read (nes_t *ptNES, uint_fast16_t hwAddress)
         }
         chData = ppu->palette[hwAddress];
     }
-
+    
     return chData;
 }
 
@@ -234,11 +193,8 @@ void ppu_bus_write (nes_t *ptNES, uint_fast16_t hwAddress, uint_fast8_t chData)
 
     ppu_t *ppu=ptNES->ppu.internal;
 
-    if (hwAddress<0x2000) {
-        cartridge_write_chr(&ptNES->cartridge, hwAddress, chData);
-    } else if (hwAddress<0x3F00) {
-        write_name_attribute_table(ptNES, hwAddress, chData);
-
+    if (hwAddress<0x3F00) {
+        ptNES->cartridge.write_chr(ptNES->cartridge.internal, hwAddress, chData);
     } else if (hwAddress<0x4000) {
         hwAddress &= 0x1F;
         if (hwAddress>=16 && (!(hwAddress & 0x03))) {
@@ -336,71 +292,6 @@ static inline uint_fast8_t fetch_sprite_info_on_specified_line(nes_t *ptNES, uin
         ptPPU->ppustatus |= PPUSTATUS_SPRITE_OVERFLOW;
     }
     return chCount;
-}
-
-static void fetch_background_tile_info(nes_t *ptNES)
-{
-    ppu_t *ptPPU=ptNES->ppu.internal;
-
-    uint_fast32_t data = 0;
-    ptPPU->tile_data <<= 4;
-
-    uint_fast8_t chTableIndex = find_name_attribute_table_index(
-                                        ptNES->cartridge.chMirror,
-                                        ptPPU->v & 0x0FFF);
-    name_attribute_table_t *ptTable = &(ptPPU->tNameAttributeTable[chTableIndex]);
-
-    uint_fast16_t hwAddress = ptPPU->v & 0x3FF;
-
-    switch (ptPPU->cycle & 0x07) {
-        case 1:                                                     //!< fetch name table byte
-            ptPPU->name_table_byte
-                = ptTable->chBuffer[hwAddress];                     //!< ptPPU->read(ptPPU->nes, 0x2000 | (ptPPU->v&0x0FFF) );
-            break;
-
-        case 3:                                                     //!< fetch attribute table byte
-            ptPPU->attribute_table_byte = ptTable->AttributeTable[ptPPU->tVAddress.YScroll>>2][ptPPU->tVAddress.XScroll>>2].chValue;
-            ptPPU->attribute_table_byte =
-                  (   (   ptPPU->attribute_table_byte >> (    ( (ptPPU->v>>4) & 4)
-                                                          |   (  ptPPU->v&2))
-                      ) & 3
-                  ) << 2;
-            break;
-
-        case 5:                                                     //!< fetch low tile byte
-            ptPPU->low_tile_byte = ppu_bus_read (
-                        ptNES,
-                        0x1000*((ptPPU->ppuctrl & PPUCTRL_BACKGROUND_TABLE) ? 1 : 0)
-                    +   ptPPU->name_table_byte*16
-                    +   ptPPU->tVAddress.TileYOffsite
-                );
-            break;
-
-        case 7:                                                     //!< fetch high tile byte
-            ptPPU->high_tile_byte = ppu_bus_read(
-                        ptNES,
-                        0x1000 * ((ptPPU->ppuctrl & PPUCTRL_BACKGROUND_TABLE) ? 1 : 0)
-                    +   ptPPU->name_table_byte*16
-                    +   ptPPU->tVAddress.TileYOffsite + 8
-                );
-            break;
-
-        case 0:                                                     //!< store tile data
-            for(int_fast32_t j = 0; j<8; j++) {
-                data <<= 4;
-                data |=     ptPPU->attribute_table_byte
-                        |   ((ptPPU->low_tile_byte  & 0x80) >> 7)
-                        |   ((ptPPU->high_tile_byte & 0x80) >> 6);
-
-                ptPPU->low_tile_byte <<= 1;
-                ptPPU->high_tile_byte <<= 1;
-            }
-            ptPPU->tile_data |= data;
-            break;
-    }
-
-
-
 }
 
 static void ppu_mix_background_and_foreground(nes_t *ptNES)
@@ -516,7 +407,31 @@ static uint_fast32_t ppu_update(nes_t *ptNES)
 
             if (RENDER_LINE && FETCH_CYCLE) {
                 //! fetch background tile information with ppu->v
-                fetch_background_tile_info(ptNES);
+                 uint32_t data=0;
+                ppu->tile_data<<=4;
+                switch (ppu->cycle%8) {
+                    case 1: // fetch name table byte
+                    ppu->name_table_byte=ppu_bus_read(ptNES, 0x2000|(ppu->v&0x0FFF));
+                    break;
+                    case 3: // fetch attribute table byte
+                    ppu->attribute_table_byte=((ppu_bus_read(ptNES, 0x23C0|(ppu->v&0xC00)|((ppu->v>>4)&0x38)|((ppu->v>>2)&0x07))>>(((ppu->v>>4)&4)|(ppu->v&2)))&3)<<2;
+                    break;
+                    case 5: // fetch low tile byte
+                    ppu->low_tile_byte=ppu_bus_read(ptNES, 0x1000*(ppu->ppuctrl&PPUCTRL_BACKGROUND_TABLE?1:0)+ppu->name_table_byte*16+((ppu->v>>12)&7));
+                    break;
+                    case 7: // fetch high tile byte
+                    ppu->high_tile_byte=ppu_bus_read(ptNES, 0x1000*(ppu->ppuctrl&PPUCTRL_BACKGROUND_TABLE?1:0)+ppu->name_table_byte*16+((ppu->v>>12)&7)+8);
+                    break;
+                    case 0: // store tile data
+                    for(int j=0; j<8; j++) {
+                        data<<=4;
+                        data|=ppu->attribute_table_byte|((ppu->low_tile_byte&0x80)>>7)|((ppu->high_tile_byte&0x80)>>6);
+                        ppu->low_tile_byte<<=1;
+                        ppu->high_tile_byte<<=1;
+                    }
+                    ppu->tile_data|=data;
+                    break;
+                }
             }
 
             if (   PRE_LINE

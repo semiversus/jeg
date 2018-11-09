@@ -3,6 +3,7 @@
 #include <SDL.h>
 #include "ppu_framebuffer.h"
 #include "controller_direct.h"
+#include "cartridge.h"
 #include "nes.h"
 
 // global variables
@@ -35,6 +36,7 @@ void update_frame(uint8_t* frame_data) {
 int main(int argc, char* argv[]) {
   int result;
   nes_t nes_console;
+  cartridge_t cartridge;
   ppu_t ppu;
   controller_direct_t controller;
   SDL_Event event;
@@ -85,8 +87,8 @@ int main(int argc, char* argv[]) {
   // init nes
   ppu_init(&nes_console, &ppu, video_frame_data);
   controller_direct_init(&nes_console, &controller);
+  result = cartridge_init(&nes_console, &cartridge, rom_data, rom_size);
   nes_init(&nes_console);
-  result=nes_setup_rom(&nes_console, rom_data, rom_size);
   if (result) {
     printf("unable to parse rom file (result:%d)\n", result);
     return 6;

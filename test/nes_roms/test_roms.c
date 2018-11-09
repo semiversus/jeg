@@ -2,6 +2,7 @@
 #include <SDL.h>
 #include "ppu_framebuffer.h"
 #include "controller_direct.h"
+#include "cartridge.h"
 #include "nes.h"
 
 // global variables
@@ -57,11 +58,13 @@ void update_frame(uint8_t* frame_data, int width, int height) {
 typedef enum test_mode_t {RECORD, PLAY, ACCEPT} test_mode_t;
 
 uint8_t *rom_data=0;
+cartridge_t cartridge; 
 
 int load_rom(nes_t *nes, char *filename) {
   FILE *rom_file;
   uint32_t rom_size=0;
   int result;
+ 
   uint8_t key_value;
 
   rom_file=fopen(filename, "rb");
@@ -84,7 +87,8 @@ int load_rom(nes_t *nes, char *filename) {
   }
   fclose(rom_file);
 
-  result=nes_setup_rom(nes, rom_data, rom_size);
+  result = cartridge_init(nes, &cartridge, rom_data, rom_size);
+  nes_init(nes);
   if (result) {
     printf("unable to parse rom file (result:%d)\n", result);
     return 3;
@@ -153,7 +157,6 @@ int main(int argc, char* argv[]) {
 
   ppu_init(&nes_console, &ppu, nes_frame_data);
   controller_direct_init(&nes_console, &controller);
-  nes_init(&nes_console);
   
   int quit = 0;
   

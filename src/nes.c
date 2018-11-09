@@ -12,7 +12,7 @@ static uint_fast16_t cpu6502_bus_read (void *ref, uint_fast16_t address)
         return *(uint16_t*)&nes->ram_data[address & 0x7FF];
         
     } else if (address>=0x6000) {
-        return cartridge_read_prg(&nes->cartridge, address);
+        return nes->cartridge.read_prg(nes->cartridge.internal, address);
         
     } else if (address<0x4000) {
         return nes->ppu.read(nes, address);
@@ -44,7 +44,7 @@ static void cpu6502_bus_write (void *ref, uint_fast16_t address, uint_fast8_t va
         nes->controller.write(nes, value);
         
     } else if (address>=0x6000) {
-        cartridge_write_prg(&nes->cartridge, address, value);
+        nes->cartridge.write_prg(nes->cartridge.internal, address, value);
     } 
 }
 
@@ -91,28 +91,10 @@ void nes_init(nes_t *ptNES)
     #endif
         
     } while(false);
-    
+    nes_reset(ptNES);
 #if JEG_USE_EXTERNAL_DRAW_PIXEL_INTERFACE == ENABLED
     return bResult;
 #endif
-}
-
-nes_err_t nes_setup_rom(nes_t *ptNES, uint8_t *pchData, uint_fast32_t wSize) 
-{
-    nes_err_t tResult = nes_err_illegal_pointer;
-    
-    do {
-        if (NULL == ptNES || NULL == pchData) {
-            break;
-        }
-
-        tResult = cartridge_setup(&(ptNES->cartridge), pchData, wSize);
-        if (nes_ok == tResult) {
-            nes_reset(ptNES);
-        }
-    } while(0);
-    
-    return tResult;
 }
 
 void nes_reset(nes_t *nes)

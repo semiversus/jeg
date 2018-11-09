@@ -21,7 +21,14 @@ typedef struct nes_t {
     void *internal;
   } ppu;
   
-  cartridge_t cartridge;
+  struct {
+    uint_fast16_t (*read_prg) (cartridge_t *catridge, uint_fast16_t address);
+    void (*write_prg) (cartridge_t *catridge, uint_fast16_t address, uint_fast8_t value);
+    uint_fast8_t (*read_chr) (cartridge_t *catridge, uint_fast16_t address);
+    void (*write_chr) (cartridge_t *catridge, uint_fast16_t address, uint_fast8_t value);
+    void (*reset) (struct nes_t *cartridge);
+    void *internal;
+  } cartridge;
   
   struct {
     uint_fast8_t  (*read) (struct nes_t *, uint_fast8_t controller);
@@ -35,7 +42,6 @@ typedef struct nes_t {
 extern void nes_init(nes_t *ptNES);
 extern void nes_reset(nes_t *);
 
-extern nes_err_t nes_setup_rom(nes_t *, uint8_t *, uint_fast32_t );
 extern void nes_iterate_frame(nes_t *); // run cpu until next complete frame
 
 #endif

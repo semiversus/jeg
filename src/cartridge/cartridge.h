@@ -4,17 +4,18 @@
 #include <stdint.h>
 #include "jeg_cfg.h"
 
+struct nes_t; 
+
 typedef enum {
-    nes_err_imcomplete_rom      = -7,
-    nes_err_unsupported_mapper  = -6,
-    nes_err_invalid_rom         = -5,
-    nes_err_illegal_size        = -4,
-    nes_err_illegal_parameter   = -3,
-    nes_err_illegal_pointer     = -2,
-    nes_err_unknown             = -1,
-    nes_err_none                = 0,
-    nes_ok                      = 0,
-} nes_err_t;
+    err_imcomplete_rom      = -7,
+    err_unsupported_mapper  = -6,
+    err_invalid_rom         = -5,
+    err_illegal_size        = -4,
+    err_illegal_parameter   = -3,
+    err_illegal_pointer     = -2,
+    err_unknown             = -1,
+    ok                      = 0,
+} cartridge_err_t;
 
 //! \name iNES header 
 //! @{
@@ -65,21 +66,12 @@ typedef struct {
   uint8_t          *pchPRGMemory;
   uint_fast32_t     wCHRAddressMask;
   uint8_t          *pchCHRMemory;
-  //uint8_t           ram_data  [0x2000];
-  uint8_t           chIOData    [0x2000];
-  uint8_t           chCHRData   [0x2000];
+  uint8_t           chIOData  [0x2000];
+  uint8_t           chCHRData [0x3000];
   uint_fast8_t      chMapper;
   uint_fast8_t      chMirror;                                                   //!< 0-horizontal, 1-vertical, 2-none
 } cartridge_t;
 
-extern nes_err_t cartridge_setup(cartridge_t *, uint8_t *, uint_fast32_t );
-
-// access cpu memory bus
-extern uint_fast16_t cartridge_read_prg(cartridge_t *, uint_fast16_t );
-extern void cartridge_write_prg(cartridge_t *, uint_fast16_t , uint_fast8_t );
-
-//! \brief access ppu memory bus
-extern uint_fast8_t cartridge_read_chr(cartridge_t *, uint_fast16_t );
-extern void cartridge_write_chr(cartridge_t *, uint_fast16_t , uint_fast8_t );
+extern cartridge_err_t cartridge_init(struct nes_t *nes, cartridge_t *cartridge, uint8_t *rom_image, uint_fast32_t size);
 
 #endif

@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "ppu_framebuffer.h"
+#include "cartridge.h"
 #include "nes.h"
 
 int main(int argc, char* argv[]) {
   int i, result;
   ppu_t ppu;
+  cartridge_t cartridge;
   nes_t nes_console;
   FILE *rom_file;
   uint8_t *rom_data;
@@ -37,8 +39,8 @@ int main(int argc, char* argv[]) {
 
   // init nes
   ppu_init(&nes_console, &ppu, video_frame_data);
+  result = cartridge_init(&nes_console, &cartridge, rom_data, rom_size);  
   nes_init(&nes_console);
-  result=nes_setup_rom(&nes_console, rom_data, rom_size);
   if (result) {
     printf("unable to parse rom file (result:%d)\n", result);
     return 6;

@@ -74,8 +74,6 @@ typedef struct ppu_t {
     uint_fast16_t scanline;
 
     uint_fast8_t palette[32];
-    
-    name_attribute_table_t tNameAttributeTable[2];
 
     sprite_table_t tSpriteTable;
 
