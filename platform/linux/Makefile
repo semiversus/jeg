@@ -1,7 +1,8 @@
 NES_SRC_PATH=../../src/
 
-INCLUDE_PATHS_NES=cartridge cpu ppu controller .
+INCLUDE_PATHS_NES=cartridge cpu ppu controller mapper .
 SRCS_NES=cartridge/cartridge.c cpu/cpu6502.c ppu/ppu_framebuffer.c nes.c controller/controller_direct.c
+SRCS_NES+=mapper/mapper0.c
 
 # target specific
 SRCS=$(addprefix $(NES_SRC_PATH), $(SRCS_NES)) ui.c

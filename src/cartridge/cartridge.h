@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "jeg_cfg.h"
 
-struct nes_t; 
+struct nes_t;
 
 typedef enum {
     err_imcomplete_rom      = -7,
@@ -17,14 +17,14 @@ typedef enum {
     ok                      = 0,
 } cartridge_err_t;
 
-//! \name iNES header 
+//! \name iNES header
 //! @{
 typedef struct {
     uint8_t chSign[4];                                                          //!< should be "NES\x1A"
-    
+
     uint8_t chPRGROMBankCount;                                                  //!< number of 16KB PRG-ROM banks
     uint8_t chCHRROMBankCount;                                                  //!< number of 8KB CHR-ROM / VROM banks
-    
+
     union {
         struct {
             uint8_t    VerticalMirroring           : 1;                         //!< 0 : Horizontal mirroring 1: Vertical mirroring
@@ -35,7 +35,7 @@ typedef struct {
         };
         uint8_t chROMCTRL1;                                                     //!< ROM control 1
     };
-    
+
     union {
         struct {
             union {
@@ -45,7 +45,7 @@ typedef struct {
                 };
                 uint8_t chROMCTRL2;                                             //!< ROM control 2
             };
-            
+
             uint8_t ch8KRAMBankCount;                                           //!< number of 8 KB RAM Banks, assume 1 page of RAM when this is zero.
             uint8_t                                 : 8;
             uint8_t                                 : 8;
@@ -55,8 +55,8 @@ typedef struct {
             uint8_t                                 : 8;
             uint8_t                                 : 8;
         };
-        
-        uint8_t chDiskDudeString[9];                                            //!< "DiskDude!"                                               
+
+        uint8_t chDiskDudeString[9];                                            //!< "DiskDude!"
     };
 }iNES_t;
 //! @}
@@ -70,8 +70,12 @@ typedef struct {
   uint8_t           chCHRData [0x3000];
   uint_fast8_t      chMapper;
   uint_fast8_t      chMirror;                                                   //!< 0-horizontal, 1-vertical, 2-none
+  //union {
+    //mapper1_t mapper1;
+  //} mappers;
 } cartridge_t;
 
 extern cartridge_err_t cartridge_init(struct nes_t *nes, cartridge_t *cartridge, uint8_t *rom_image, uint_fast32_t size);
+extern int mirror_address (int mode, int address);
 
 #endif
